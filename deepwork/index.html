@@ -84,8 +84,8 @@
                 const angle = Math.round(event.beta);
                 tiltValue.textContent = angle;
                 
-                // Check if angle is in target range (-5 to 15 degrees)
-                const newInRange = (angle >= -5 && angle <= 15);
+                // Check if angle is in target range (8 to 15 degrees)
+                const newInRange = (angle >= 8 && angle <= 15);
                 
                 // If tilt range status changed
                 if (newInRange !== inRange) {
@@ -124,8 +124,8 @@
         function stopTimer() {
             const duration = startTime ? Math.floor((Date.now() - startTime) / 1000) : 0;
             
-            // Log session if it was significant (over 10 seconds)
-            if (duration >= 10) {
+            // Log session if it was significant (over 60 seconds)
+            if (duration >= 60) {
                 logSession(duration);
             }
             
