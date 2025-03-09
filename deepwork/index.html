@@ -117,6 +117,7 @@
                     durationFormatted: durationFormatted
                 };
                 
+                // Send data to web app URL
                 const URL = 'https://script.google.com/macros/s/AKfycbyn9O5HPqnApYNKg4xpdDSnn_WoAcvt36Zo9wtYw8_OQ7bXmwzKvi8IPDoOVangdAMe/exec';
                 
                 fetch(URL, {
@@ -142,34 +143,16 @@
         };
         
         function initTiltTracking() {
+            // Debounced tilt handler
             window.addEventListener('deviceorientation', e => {
                 if (!e.beta) return;
                 
                 const tilt = Math.round(e.beta);
-                const angle = tilt < 0 ? 0 : (tilt > 90 ? 90 : tilt);
+                const angle = tilt < 0 ? tilt : (tilt > 90 ? 90 : tilt);
                 display.tilt.textContent = angle;
                 
-                // Check if tilt is in target range (8-15 degrees)
-                if (angle >= 8 && angle <= 15) {
-                    // Start countdown to activate timer
-                    if (!timer.active && !timer.checkTimeout) {
-                        timer.checkTimeout = setTimeout(() => {
-                            timer.start();
-                            timer.checkTimeout = null;
-                        }, 5000);
-                    }
-                } else {
-                    // Clear activation countdown if tilt leaves range
-                    if (timer.checkTimeout) {
-                        clearTimeout(timer.checkTimeout);
-                        timer.checkTimeout = null;
-                    }
-                    
-                    // Stop timer if running
-                    if (timer.active) {
-                        timer.stop();
-                    }
-                }
+                // Use the improved tilt checking
+                timer.checkTilt(angle);
             });
         }
         
