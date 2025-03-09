@@ -125,37 +125,17 @@
         
         // Log session to server
         function logSession(duration) {
-            // Ensure duration is an integer number of seconds
-            const durationSeconds = Math.floor(duration);
+            const data = {
+                timestamp: new Date().toISOString(),
+                duration: duration
+            };
             
-            // Use UTC timestamp to avoid daylight saving issues
-            const timestamp = new Date().toISOString();
-            
-            // Create parameters
-            const params = new URLSearchParams();
-            params.append('timestamp', timestamp);
-            params.append('duration', durationSeconds.toString());
-            
-            // Create URL with parameters
-            const url = `https://script.google.com/macros/s/AKfycbxqrgHMgxb-ZubjJyMD6EgSMLZlgyG19mWb_qQ7t6yiPcYxAVfxLEshTHNllYZ2gvy3/exec?${params.toString()}`;
-            
-            console.log(`Logging session: ${durationSeconds} seconds at ${timestamp}`);
-            
-            // Make the request
-            fetch(url)
-                .then(response => {
-                    if (response.status >= 200 && response.status < 300) {
-                        return response.text();
-                    } else {
-                        throw new Error(`HTTP error ${response.status}`);
-                    }
-                })
-                .then(text => {
-                    console.log(`Logging response: ${text}`);
-                })
-                .catch(err => {
-                    console.error(`Error logging session: ${err.message}`);
-                });
+            fetch('YOUR_WEB_APP_URL', {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            }).catch(err => console.error('Error logging session:', err));
         }
         
         // Initialize on page load
