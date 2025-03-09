@@ -42,20 +42,36 @@
     </div>
 
     <script>
-        // Simple variables
+        // State variables
         let timerActive = false;
         let startTime = null;
         let timerInterval = null;
         let displayVisible = true;
+        
+        // Config
+        const TILT_RANGE = { min: -5, max: 15 };
+        const MIN_SESSION_DURATION = 10; // seconds
+        const SHEETS_URL = 'https://script.google.com/macros/s/AKfycbxqrgHMgxb-ZubjJyMD6EgSMLZlgyG19mWb_qQ7t6yiPcYxAVfxLEshTHNllYZ2gvy3/exec';
         
         // DOM elements
         const tiltDisplay = document.getElementById('tilt');
         const timerDisplay = document.getElementById('timer');
         const displayElement = document.getElementById('display');
         
-        // Initialize
+        // Initialize app
         function init() {
-            // Request device orientation permission
+            // Request permissions and start tracking
+            requestOrientationPermission();
+            
+            // Toggle display on tap
+            document.body.addEventListener('click', () => {
+                displayVisible = !displayVisible;
+                displayElement.style.opacity = displayVisible ? '1' : '0';
+            });
+        }
+        
+        // Request device orientation permission
+        function requestOrientationPermission() {
             if (typeof DeviceOrientationEvent?.requestPermission === 'function') {
                 DeviceOrientationEvent.requestPermission()
                     .then(result => {
@@ -67,12 +83,6 @@
             } else {
                 startTracking();
             }
-            
-            // Toggle display on tap
-            document.body.addEventListener('click', () => {
-                displayVisible = !displayVisible;
-                displayElement.style.opacity = displayVisible ? '1' : '0';
-            });
         }
         
         // Start tracking tilt
@@ -80,12 +90,10 @@
             window.addEventListener('deviceorientation', evt => {
                 if (!evt.beta) return;
                 
-                // Get tilt angle (-5 to 15 degrees for testing)
                 const tilt = Math.round(evt.beta);
                 tiltDisplay.textContent = tilt;
                 
-                // Check if in target range
-                if (tilt >= -5 && tilt <= 15) {
+                if (tilt >= TILT_RANGE.min && tilt <= TILT_RANGE.max) {
                     if (!timerActive) {
                         startTimer();
                     }
@@ -116,47 +124,22 @@
             
             if (startTime) {
                 const duration = Math.floor((Date.now() - startTime) / 1000);
-                // Only log sessions that are at least 10 seconds
-                if (duration >= 10) {
+                if (duration >= MIN_SESSION_DURATION) {
                     logSession(duration);
                 }
                 startTime = null;
             }
         }
-
-        // Log session to server
+        
+        // Log session to Google Sheets
         function logSession(duration) {
-            // Ensure duration is an integer number of seconds
-            const durationSeconds = Math.floor(duration);
+            const params = new URLSearchParams({
+                timestamp: new Date().toISOString(),
+                duration: duration.toString()
+            });
             
-            // Use UTC timestamp to avoid daylight saving issues
-            const timestamp = new Date().toISOString();
-            
-            // Create parameters
-            const params = new URLSearchParams();
-            params.append('timestamp', timestamp);
-            params.append('duration', durationSeconds.toString());
-            
-            // Create URL with parameters
-            const url = `https://script.google.com/macros/s/AKfycbxqrgHMgxb-ZubjJyMD6EgSMLZlgyG19mWb_qQ7t6yiPcYxAVfxLEshTHNllYZ2gvy3/exec?${params.toString()}`;
-            
-            console.log(`Logging session: ${durationSeconds} seconds at ${timestamp}`);
-            
-            // Make the request
-            fetch(url)
-                .then(response => {
-                    if (response.status >= 200 && response.status < 300) {
-                        return response.text();
-                    } else {
-                        throw new Error(`HTTP error ${response.status}`);
-                    }
-                })
-                .then(text => {
-                    console.log(`Logging response: ${text}`);
-                })
-                .catch(err => {
-                    console.error(`Error logging session: ${err.message}`);
-                });
+            fetch(`${SHEETS_URL}?${params.toString()}`)
+                .catch(err => console.error('Error logging session:', err));
         }
         
         // Initialize on page load
