@@ -2,20 +2,67 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="robots" content="noindex, nofollow">
-    <title>Deep Work Tracker</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <title>Tilt Meter</title>
     <style>
-        /* Styles will go here */
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: #000;
+            color: #fff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+            user-select: none;
+        }
+        #tiltDisplay {
+            font-size: 140px;
+            font-weight: 200;
+        }
     </style>
 </head>
 <body>
-    <div id="app">
-        <!-- Your content will go here -->
-    </div>
-    
+    <div id="tiltDisplay">0°</div>
+
     <script>
-        // JavaScript will go here
+        function requestPermission() {
+            if (typeof DeviceOrientationEvent !== 'undefined' && 
+                typeof DeviceOrientationEvent.requestPermission === 'function') {
+                DeviceOrientationEvent.requestPermission()
+                    .then(permissionState => {
+                        if (permissionState === 'granted') {
+                            initTracker();
+                        }
+                    })
+                    .catch(console.error);
+            } else {
+                initTracker();
+            }
+        }
+        
+        function initTracker() {
+            window.addEventListener('deviceorientation', handleOrientation);
+        }
+        
+        function handleOrientation(event) {
+            if (!event.beta) return;
+            
+            const beta = Math.round(event.beta);
+            const tiltAngle = beta < 0 ? 0 : (beta > 90 ? 90 : beta);
+            document.getElementById('tiltDisplay').textContent = `${tiltAngle}°`;
+        }
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            document.body.addEventListener('click', () => {
+                requestPermission();
+                document.body.removeEventListener('click', requestPermission);
+            }, { once: true });
+        });
     </script>
 </body>
 </html>
