@@ -117,11 +117,9 @@
                     durationFormatted: durationFormatted
                 };
                 
-                // Send data to Google Sheets via a web app URL
-                // You'll need to replace this URL with your actual Google Apps Script web app URL
-                const GOOGLE_SHEET_URL = 'https://script.google.com/macros/s/AKfycbyn9O5HPqnApYNKg4xpdDSnn_WoAcvt36Zo9wtYw8_OQ7bXmwzKvi8IPDoOVangdAMe/exec';
+                const URL = 'https://script.google.com/macros/s/AKfycbyn9O5HPqnApYNKg4xpdDSnn_WoAcvt36Zo9wtYw8_OQ7bXmwzKvi8IPDoOVangdAMe/exec';
                 
-                fetch(GOOGLE_SHEET_URL, {
+                fetch(URL, {
                     method: 'POST',
                     mode: 'no-cors', // This is important for cross-domain requests
                     headers: {
