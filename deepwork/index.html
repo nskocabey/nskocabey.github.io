@@ -123,19 +123,31 @@
             }
         }
         
-        // Log session to server
+        // Updated logSession function with working URL
         function logSession(duration) {
             const data = {
                 timestamp: new Date().toISOString(),
                 duration: duration
             };
             
-            fetch('https://script.google.com/macros/s/AKfycbyn9O5HPqnApYNKg4xpdDSnn_WoAcvt36Zo9wtYw8_OQ7bXmwzKvi8IPDoOVangdAMe/exec', {
-                method: 'POST',
-                mode: 'no-cors',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data)
-            }).catch(err => console.error('Error logging session:', err));
+            // Convert to URL parameters
+            const params = new URLSearchParams();
+            params.append('timestamp', data.timestamp);
+            params.append('duration', data.duration);
+            
+            // Create URL with parameters using the working URL
+            const url = `https://script.google.com/macros/s/AKfycbxqrgHMgxb-ZubjJyMD6EgSMLZlgyG19mWb_qQ7t6yiPcYxAVfxLEshTHNllYZ2gvy3/exec?${params.toString()}`;
+            
+            // Make the request
+            fetch(url)
+                .then(response => {
+                    if (response.status >= 200 && response.status < 300) {
+                        console.log('Session logged successfully');
+                    } else {
+                        console.error('Error logging session, status:', response.status);
+                    }
+                })
+                .catch(err => console.error('Error logging session:', err));
         }
         
         // Initialize on page load
