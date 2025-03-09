@@ -142,27 +142,37 @@
         
         // Log session to Google Sheets
         function logSession(duration) {
+            // Ensure duration is an integer number of seconds
+            const durationSeconds = Math.floor(duration);
+            
+            // Use UTC timestamp to avoid daylight saving issues
             const timestamp = new Date().toISOString();
-            const minutes = Math.floor(duration / 60);
-            const seconds = duration % 60;
-            const durationFormatted = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
             
-            const data = {
-                timestamp: timestamp,
-                duration: duration,
-                durationFormatted: durationFormatted
-            };
+            // Create parameters
+            const params = new URLSearchParams();
+            params.append('timestamp', timestamp);
+            params.append('duration', durationSeconds.toString());
             
-            const URL = 'YOUR_WEB_APP_URL';
+            // Create URL with parameters
+            const url = `https://script.google.com/macros/s/AKfycbxqrgHMgxb-ZubjJyMD6EgSMLZlgyG19mWb_qQ7t6yiPcYxAVfxLEshTHNllYZ2gvy3/exec?${params.toString()}`;
             
-            fetch(URL, {
-                method: 'POST',
-                mode: 'no-cors',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(data)
-            }).catch(err => console.error('Error logging session:', err));
+            console.log(`Logging session: ${durationSeconds} seconds at ${timestamp}`);
+            
+            // Make the request
+            fetch(url)
+                .then(response => {
+                    if (response.status >= 200 && response.status < 300) {
+                        return response.text();
+                    } else {
+                        throw new Error(`HTTP error ${response.status}`);
+                    }
+                })
+                .then(text => {
+                    console.log(`Logging response: ${text}`);
+                })
+                .catch(err => {
+                    console.error(`Error logging session: ${err.message}`);
+                });
         }
         
         // Initialize the app
