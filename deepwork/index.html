@@ -12,8 +12,6 @@
             padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
             background-color: #000;
             color: #fff;
-            overflow: hidden;
-            user-select: none;
             position: fixed;
             top: 0;
             left: 0;
@@ -24,6 +22,7 @@
             align-items: center;
             width: 100vw;
             height: 100vh;
+            overflow: hidden;
         }
         
         #display {
@@ -59,103 +58,114 @@
     </div>
 
     <script>
-        const display = {
-            tilt: document.getElementById('tiltValue'),
-            timer: document.getElementById('timer'),
-            element: document.getElementById('display'),
-            visible: true,
-            toggle() {
-                this.visible = !this.visible;
-                this.element.style.opacity = this.visible ? '1' : '0';
-            }
-        };
+        // Simple display toggle
+        let displayVisible = true;
+        const display = document.getElementById('display');
+        const tiltValue = document.getElementById('tiltValue');
+        const timer = document.getElementById('timer');
         
-        const timer = {
-            active: false,
-            start: null,
-            interval: null,
-            checkTimeout: null,
-            
-            start() {
-                this.active = true;
-                this.start = Date.now();
-                this.interval = setInterval(() => this.update(), 1000);
-            },
-            
-            stop() {
-                if (this.active && this.start) {
-                    // Calculate the duration of deep work
-                    const duration = Math.floor((Date.now() - this.start) / 1000);
+        // Timer variables
+        let startTime = null;
+        let timerInterval = null;
+        let inRange = false;
+        
+        // Toggle display visibility on tap
+        function toggleDisplay() {
+            displayVisible = !displayVisible;
+            display.style.opacity = displayVisible ? '1' : '0';
+        }
+        
+        // Start tracking tilt
+        function initTiltTracking() {
+            window.addEventListener('deviceorientation', event => {
+                if (!event.beta) return;
+                
+                // Get and display tilt angle
+                const angle = Math.round(event.beta);
+                tiltValue.textContent = angle;
+                
+                // Check if angle is in target range (-5 to 15 degrees)
+                const newInRange = (angle >= -5 && angle <= 15);
+                
+                // If tilt range status changed
+                if (newInRange !== inRange) {
+                    inRange = newInRange;
                     
-                    // Only log if the session was at least 10 seconds
-                    if (duration >= 10) {
-                        this.logToGoogleSheets(duration);
+                    if (inRange) {
+                        // Start timer immediately when in range
+                        startTimer();
+                    } else {
+                        // Stop and reset timer when out of range
+                        stopTimer();
                     }
                 }
-                
-                this.active = false;
-                clearInterval(this.interval);
-                this.interval = null;
-                display.timer.textContent = '00:00';
-                this.start = null;
-            },
-            
-            logToGoogleSheets(durationSeconds) {
-                // Format the current date and time
-                const now = new Date();
-                const timestamp = now.toISOString();
-                
-                // Format the duration as MM:SS
-                const minutes = Math.floor(durationSeconds / 60);
-                const seconds = durationSeconds % 60;
-                const durationFormatted = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-                
-                // Prepare the data to send
-                const data = {
-                    timestamp: timestamp,
-                    duration: durationSeconds,
-                    durationFormatted: durationFormatted
-                };
-                
-                // Send data to web app URL
-                const URL = 'YOUR_WEB_APP_URL';
-                
-                fetch(URL, {
-                    method: 'POST',
-                    mode: 'no-cors', // This is important for cross-domain requests
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(data)
-                }).catch(err => console.error('Error logging deep work session:', err));
-            },
-            
-            update() {
-                if (!this.active || !this.start) return;
-                
-                const elapsed = Math.floor((Date.now() - this.start) / 1000);
-                const minutes = Math.floor(elapsed / 60);
-                const seconds = elapsed % 60;
-                
-                display.timer.textContent = 
-                    `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-            }
-        };
-        
-        function initTiltTracking() {
-            // Debounced tilt handler
-            window.addEventListener('deviceorientation', e => {
-                if (!e.beta) return;
-                
-                const tilt = Math.round(e.beta);
-                const angle = tilt < 0 ? tilt : (tilt > 90 ? 90 : tilt);
-                display.tilt.textContent = angle;
-                
-                // Use the improved tilt checking
-                timer.checkTilt(angle);
             });
         }
         
+        // Start the timer
+        function startTimer() {
+            startTime = Date.now();
+            
+            // Clear any existing interval
+            if (timerInterval) clearInterval(timerInterval);
+            
+            // Update timer every second
+            timerInterval = setInterval(() => {
+                const elapsed = Math.floor((Date.now() - startTime) / 1000);
+                const minutes = Math.floor(elapsed / 60);
+                const seconds = elapsed % 60;
+                
+                timer.textContent = 
+                    `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            }, 1000);
+        }
+        
+        // Stop and reset the timer
+        function stopTimer() {
+            const duration = startTime ? Math.floor((Date.now() - startTime) / 1000) : 0;
+            
+            // Log session if it was significant (over 10 seconds)
+            if (duration >= 10) {
+                logSession(duration);
+            }
+            
+            // Clear the interval
+            if (timerInterval) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+            }
+            
+            // Reset timer display
+            timer.textContent = '00:00';
+            startTime = null;
+        }
+        
+        // Log session to Google Sheets
+        function logSession(duration) {
+            const timestamp = new Date().toISOString();
+            const minutes = Math.floor(duration / 60);
+            const seconds = duration % 60;
+            const durationFormatted = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            
+            const data = {
+                timestamp: timestamp,
+                duration: duration,
+                durationFormatted: durationFormatted
+            };
+            
+            const URL = 'YOUR_WEB_APP_URL';
+            
+            fetch(URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(data)
+            }).catch(err => console.error('Error logging session:', err));
+        }
+        
+        // Initialize the app
         function requestOrientationPermission() {
             if (typeof DeviceOrientationEvent?.requestPermission === 'function') {
                 DeviceOrientationEvent.requestPermission()
@@ -170,19 +180,19 @@
             }
         }
         
-        // Initialize
+        // Setup initial event listeners
         document.addEventListener('DOMContentLoaded', () => {
-            let permissionRequested = false;
+            let hasPermission = false;
             
-            document.body.addEventListener('click', e => {
-                if (!permissionRequested) {
+            document.body.addEventListener('click', event => {
+                if (!hasPermission) {
                     requestOrientationPermission();
-                    permissionRequested = true;
+                    hasPermission = true;
                     return;
                 }
                 
-                display.toggle();
-                e.preventDefault();
+                toggleDisplay();
+                event.preventDefault();
             });
         });
     </script>
