@@ -116,38 +116,47 @@
             
             if (startTime) {
                 const duration = Math.floor((Date.now() - startTime) / 1000);
+                // Only log sessions that are at least 10 seconds
                 if (duration >= 10) {
                     logSession(duration);
                 }
                 startTime = null;
             }
         }
-        
-        // Updated logSession function with working URL
+
+        // Log session to server
         function logSession(duration) {
-            const data = {
-                timestamp: new Date().toISOString(),
-                duration: duration
-            };
+            // Ensure duration is an integer number of seconds
+            const durationSeconds = Math.floor(duration);
             
-            // Convert to URL parameters
+            // Use UTC timestamp to avoid daylight saving issues
+            const timestamp = new Date().toISOString();
+            
+            // Create parameters
             const params = new URLSearchParams();
-            params.append('timestamp', data.timestamp);
-            params.append('duration', data.duration);
+            params.append('timestamp', timestamp);
+            params.append('duration', durationSeconds.toString());
             
-            // Create URL with parameters using the working URL
+            // Create URL with parameters
             const url = `https://script.google.com/macros/s/AKfycbxqrgHMgxb-ZubjJyMD6EgSMLZlgyG19mWb_qQ7t6yiPcYxAVfxLEshTHNllYZ2gvy3/exec?${params.toString()}`;
+            
+            console.log(`Logging session: ${durationSeconds} seconds at ${timestamp}`);
             
             // Make the request
             fetch(url)
                 .then(response => {
                     if (response.status >= 200 && response.status < 300) {
-                        console.log('Session logged successfully');
+                        return response.text();
                     } else {
-                        console.error('Error logging session, status:', response.status);
+                        throw new Error(`HTTP error ${response.status}`);
                     }
                 })
-                .catch(err => console.error('Error logging session:', err));
+                .then(text => {
+                    console.log(`Logging response: ${text}`);
+                })
+                .catch(err => {
+                    console.error(`Error logging session: ${err.message}`);
+                });
         }
         
         // Initialize on page load
