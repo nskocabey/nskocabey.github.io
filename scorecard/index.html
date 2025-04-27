@@ -5,63 +5,55 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>Deep Work Scorecard</title>
+    <title>Scorecard</title>
     <style>
         :root {
             --bg-color: #000;
-            --text-color: #fff;
-            --bar-color: #888;
-            --bar-highlight: #fff;
+            --text-color: #f5f5f5;
+            --bar-color: #333;
+            --bar-highlight: #666;
+            --accent-color: #f5f5f5;
         }
         
         * {
             box-sizing: border-box;
             -webkit-tap-highlight-color: transparent;
+            margin: 0;
+            padding: 0;
         }
         
         body {
-            margin: 0;
             padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
             background-color: var(--bg-color);
             color: var(--text-color);
             position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
+            inset: 0;
             display: flex;
             flex-direction: column;
             align-items: center;
-            width: 100vw;
+            justify-content: center;
             height: 100vh;
             overflow: hidden;
-            font-family: 'Courier New', monospace;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
             -webkit-font-smoothing: antialiased;
         }
         
-        header {
-            margin-top: 15vh;
-            margin-bottom: 8vh;
-            font-size: 16px;
-            font-weight: 700;
-            opacity: 0.8;
-        }
-        
         #chart-container {
-            width: 90vw;
-            max-width: 500px;
-            height: 50vh;
+            width: 85vw;
+            max-width: 450px;
+            height: 45vh;
             display: flex;
-            align-items: flex-start;
-            justify-content: space-around;
+            align-items: flex-end;
+            justify-content: space-between;
             position: relative;
+            margin-bottom: 8vh;
         }
         
         .bar-container {
             display: flex;
             flex-direction: column;
             align-items: center;
-            width: 8%;
+            width: 7%;
             height: 100%;
             position: relative;
         }
@@ -69,148 +61,112 @@
         .bar {
             width: 100%;
             background-color: var(--bar-color);
-            border-radius: 2px;
-            transition: height 0.8s ease;
-            opacity: 0.9;
+            border-radius: 1px;
+            transition: height 1s cubic-bezier(0.19, 1, 0.22, 1);
             margin-top: auto;
         }
         
         .bar:active {
             background-color: var(--bar-highlight);
-            opacity: 1;
         }
         
         .time {
-            margin-top: 8vh;
-            font-size: 35px;
-            font-weight: 700;
+            font-size: 5rem;
+            font-weight: 300;
+            letter-spacing: -1px;
+            opacity: 0.9;
+            color: var(--accent-color);
         }
     </style>
 </head>
 <body>
-    <header>what you do not measure, you cannot improve</header>
-    
-    <div id="chart-container">
-        <!-- Bars will be dynamically created here -->
-    </div>
+    <div id="chart-container"></div>
     
     <div class="time" id="total-time">0</div>
 
     <script>
-        // Function to format seconds into hours
-        function formatHours(seconds) {
-            const hours = (seconds / 3600).toFixed(1);
-            return hours;
-        }
+        const formatHours = seconds => (seconds / 3600).toFixed(1);
         
-        // Function to format date range
-        function formatWeekLabel(date) {
-            if (!date || !(date instanceof Date) || isNaN(date.getTime())) {
-                return "Week";
-            }
-            const month = date.toLocaleString('default', { month: 'short' });
-            const day = date.getDate();
-            return `${month} ${day}`;
-        }
-        
-        // Function to create the weekly chart
-        function createWeeklyChart(weeklyData) {
+        async function createChart(weeklyData) {
             const chartContainer = document.getElementById('chart-container');
             const totalTimeElement = document.getElementById('total-time');
             
-            // Clear any existing content
             chartContainer.innerHTML = '';
             
-            // Calculate recent 10 weeks (or fewer if not enough data)
-            const recentWeeks = weeklyData.slice(-10);
+            const now = new Date();
+            const currentWeekStart = new Date(now);
+            currentWeekStart.setDate(now.getDate() - now.getDay());
+            currentWeekStart.setHours(0, 0, 0, 0);
             
-            // Find the max value for scaling
-            const maxValue = Math.max(...recentWeeks.map(week => week.totalSeconds));
+            const completedWeeks = weeklyData
+                .filter(week => week.startDate < currentWeekStart)
+                .slice(-8); // Only show last 8 completed weeks for more minimalist look
             
-            // Display the most recent week's time
-            const mostRecentWeek = recentWeeks[recentWeeks.length - 1];
-            if (mostRecentWeek) {
-                totalTimeElement.textContent = formatHours(mostRecentWeek.totalSeconds);
-            } else {
-                totalTimeElement.textContent = "0";
-            }
+            if (completedWeeks.length === 0) return;
             
-            // Create a bar for each week
-            recentWeeks.forEach((week, i) => {
-                // Create container for bar
+            const maxValue = Math.max(...completedWeeks.map(week => week.totalSeconds));
+            
+            // Display only the last completed week's time
+            const lastCompletedWeek = completedWeeks[completedWeeks.length - 1];
+            totalTimeElement.textContent = lastCompletedWeek ? 
+                formatHours(lastCompletedWeek.totalSeconds) : "0";
+            
+            // Create bars with staggered animation
+            completedWeeks.forEach((week, i) => {
                 const barContainer = document.createElement('div');
                 barContainer.className = 'bar-container';
                 
-                // Create the bar element
                 const bar = document.createElement('div');
                 bar.className = 'bar';
                 
-                // Set height based on percentage of max value
-                const heightPercentage = maxValue > 0 ? (week.totalSeconds / maxValue) * 80 : 0;
-                bar.style.height = '0%'; // Start at 0 for animation
+                // More minimal height calculation, using 100% of container
+                const heightPercentage = maxValue > 0 ? (week.totalSeconds / maxValue) * 100 : 0;
+                bar.style.height = '0%';
                 
-                // Append elements
                 barContainer.appendChild(bar);
                 chartContainer.appendChild(barContainer);
                 
-                // Animate the bar height after a short delay
+                // Smoother, sequential animation
                 setTimeout(() => {
                     bar.style.height = `${heightPercentage}%`;
-                }, 80 * i);
+                }, 100 * i);
             });
         }
         
-        // Function to fetch data from the Google Sheet
-        async function fetchDeepWorkData() {
+        async function fetchData() {
             try {
-                // Using the JSONP endpoint for the Google Sheet
                 const sheetId = '1Huku8KRtJf745n6-0ILDs1cdgmwsuWPVTffGp5wGVss';
                 const sheetUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:json`;
                 
-                console.log('Fetching data from Google Sheet...');
                 const response = await fetch(sheetUrl);
-                if (!response.ok) {
-                    throw new Error(`HTTP error ${response.status}`);
-                }
+                if (!response.ok) throw new Error(`HTTP error ${response.status}`);
                 
                 const text = await response.text();
-                console.log('Received response. Processing data...');
                 
-                // Parse the JSONP response (remove the padding)
+                // Parse the JSONP response
                 const jsonStart = text.indexOf('{');
                 const jsonEnd = text.lastIndexOf('}');
                 const jsonString = text.substring(jsonStart, jsonEnd + 1);
                 
                 try {
                     const data = JSON.parse(jsonString);
-                    console.log('Successfully parsed JSON data');
-                    
-                    // Process the data to get weekly totals
-                    const result = processSheetData(data);
-                    console.log('Processed weekly data:', result);
-                    return result;
+                    return processData(data);
                 } catch (jsonError) {
                     console.error('Error parsing JSON:', jsonError);
-                    console.log('Response text:', text);
-                    console.log('Extracted JSON string:', jsonString);
-                    return mockData();
+                    return [];
                 }
             } catch (error) {
                 console.error('Error fetching data:', error);
-                return mockData(); // Use mock data if fetch fails
+                return [];
             }
         }
         
-        // Function to process the sheet data and group by week
-        function processSheetData(data) {
+        function processData(data) {
             try {
-                // Extract rows from the response
                 const rows = data.table.rows;
-                
-                // Skip header row if present
                 const startIndex = rows[0].c[0].v === 'Timestamp' ? 1 : 0;
                 
-                // Create an array of entries with timestamp and duration
+                // Extract entries with timestamp and duration
                 const entries = [];
                 for (let i = startIndex; i < rows.length; i++) {
                     const row = rows[i].c;
@@ -218,120 +174,70 @@
                         const timestamp = row[0].v;
                         const duration = parseFloat(row[1].v) || 0;
                         
-                        try {
-                            const date = new Date(timestamp);
-                            
-                            // Validate the date is valid
-                            if (timestamp && !isNaN(date.getTime()) && !isNaN(duration)) {
-                                entries.push({
-                                    date: date,
-                                    seconds: duration
-                                });
-                            }
-                        } catch (e) {
-                            console.error("Invalid date format:", timestamp);
+                        const date = new Date(timestamp);
+                        if (timestamp && !isNaN(date.getTime()) && !isNaN(duration)) {
+                            entries.push({ date, seconds: duration });
                         }
                     }
                 }
                 
-                // Group entries by week
+                // Group by week
                 const weekMap = new Map();
                 const now = new Date();
                 const tenWeeksAgo = new Date(now);
-                tenWeeksAgo.setDate(now.getDate() - 70); // 10 weeks ago
+                tenWeeksAgo.setDate(now.getDate() - 70);
                 
-                // Get the start of the current week (Sunday)
+                // Get current week start
                 const currentWeekStart = new Date(now);
                 currentWeekStart.setDate(now.getDate() - now.getDay());
                 currentWeekStart.setHours(0, 0, 0, 0);
                 
-                // Only include entries from the last 10 weeks
-                const recentEntries = entries.filter(entry => entry.date >= tenWeeksAgo);
+                // Process recent entries
+                entries
+                    .filter(entry => entry.date >= tenWeeksAgo)
+                    .forEach(entry => {
+                        const weekStart = new Date(entry.date);
+                        weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+                        weekStart.setHours(0, 0, 0, 0);
+                        
+                        const weekKey = weekStart.toISOString().split('T')[0];
+                        
+                        if (!weekMap.has(weekKey)) {
+                            weekMap.set(weekKey, {
+                                startDate: weekStart,
+                                totalSeconds: 0
+                            });
+                        }
+                        
+                        weekMap.get(weekKey).totalSeconds += entry.seconds;
+                    });
                 
-                // Ensure we have at least the current week in our map
-                weekMap.set(currentWeekStart.toISOString().split('T')[0], {
-                    startDate: currentWeekStart,
-                    totalSeconds: 0
-                });
-                
-                // Group by week
-                recentEntries.forEach(entry => {
-                    // Get the week start date (Sunday)
-                    const weekStart = new Date(entry.date);
-                    weekStart.setDate(weekStart.getDate() - weekStart.getDay());
-                    weekStart.setHours(0, 0, 0, 0);
-                    
-                    const weekKey = weekStart.toISOString().split('T')[0];
-                    
-                    if (!weekMap.has(weekKey)) {
-                        weekMap.set(weekKey, {
-                            startDate: weekStart,
-                            totalSeconds: 0
-                        });
-                    }
-                    
-                    // Add the duration to the week's total
-                    weekMap.get(weekKey).totalSeconds += entry.seconds;
-                });
-                
-                // Convert map to array and sort by date
-                const weeklyData = Array.from(weekMap.entries())
+                // Convert to array and sort by date
+                return Array.from(weekMap.entries())
                     .map(([key, value], index) => ({
-                        index: index,
-                        label: `W${index + 1}`,
                         startDate: value.startDate,
                         totalSeconds: value.totalSeconds
                     }))
                     .sort((a, b) => a.startDate - b.startDate);
-                
-                return weeklyData;
+                    
             } catch (error) {
-                console.error('Error processing sheet data:', error);
-                return mockData();
+                console.error('Error processing data:', error);
+                return [];
             }
         }
         
-        // Function to generate mock data for testing
-        function mockData() {
-            const weeks = [];
-            const now = new Date();
-            let currentDate = new Date();
-            currentDate.setDate(currentDate.getDate() - (70)); // Start 10 weeks ago
-            
-            for (let i = 0; i < 10; i++) {
-                const startDate = new Date(currentDate);
-                currentDate.setDate(currentDate.getDate() + 7);
-                
-                // Generate a random number of seconds between 5 and 20 hours
-                const totalSeconds = Math.floor(Math.random() * (20 - 5 + 1) + 5) * 3600;
-                
-                weeks.push({
-                    index: i,
-                    label: `W${i+1}`,
-                    startDate: startDate,
-                    totalSeconds: totalSeconds
-                });
-            }
-            
-            return weeks;
-        }
-        
-        // Initialize the app
         async function initApp() {
-            // First load with mock data
-            let weeklyData = mockData();
-            createWeeklyChart(weeklyData);
+            document.getElementById('chart-container').innerHTML = '';
+            document.getElementById('total-time').textContent = '0';
             
-            // Then try to fetch real data
             try {
-                weeklyData = await fetchDeepWorkData();
-                createWeeklyChart(weeklyData);
+                const data = await fetchData();
+                createChart(data);
             } catch (error) {
-                console.error('Error initializing app:', error);
+                console.error('Error:', error);
             }
         }
         
-        // Start the app when DOM is loaded
         document.addEventListener('DOMContentLoaded', initApp);
     </script>
 </body>
