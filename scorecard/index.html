@@ -115,7 +115,7 @@
             const lastCompletedWeek = completedWeeks[completedWeeks.length - 1];
             const lastWeekHours = lastCompletedWeek ? formatHours(lastCompletedWeek.totalSeconds) : "0";
             const currentWeekHours = formatHours(currentWeekTotal);
-            totalTimeElement.textContent = `${lastWeekHours} | ${currentWeekHours}`;
+            totalTimeElement.textContent = `${lastWeekHours}   ${currentWeekHours}`;
             
             // Create bars with staggered animation
             completedWeeks.forEach((week, i) => {
