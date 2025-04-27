@@ -101,15 +101,21 @@
             const completedWeeks = weeklyData
                 .filter(week => week.startDate < currentWeekStart)
                 .slice(-8); // Only show last 8 completed weeks for more minimalist look
+                
+            // Find current week data
+            const currentWeekData = weeklyData.find(week => 
+                week.startDate.getTime() === currentWeekStart.getTime());
+            const currentWeekTotal = currentWeekData ? currentWeekData.totalSeconds : 0;
             
             if (completedWeeks.length === 0) return;
             
             const maxValue = Math.max(...completedWeeks.map(week => week.totalSeconds));
             
-            // Display only the last completed week's time
+            // Display last week's time and current week's time separated by |
             const lastCompletedWeek = completedWeeks[completedWeeks.length - 1];
-            totalTimeElement.textContent = lastCompletedWeek ? 
-                formatHours(lastCompletedWeek.totalSeconds) : "0";
+            const lastWeekHours = lastCompletedWeek ? formatHours(lastCompletedWeek.totalSeconds) : "0";
+            const currentWeekHours = formatHours(currentWeekTotal);
+            totalTimeElement.textContent = `${lastWeekHours} | ${currentWeekHours}`;
             
             // Create bars with staggered animation
             completedWeeks.forEach((week, i) => {
