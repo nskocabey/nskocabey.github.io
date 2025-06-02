@@ -100,7 +100,7 @@
             
             const completedWeeks = weeklyData
                 .filter(week => week.startDate < currentWeekStart)
-                .slice(-8); // Only show last 8 completed weeks for more minimalist look
+                .slice(-12); // Only show last 8 completed weeks for more minimalist look
                 
             // Find current week data
             const currentWeekData = weeklyData.find(week => 
