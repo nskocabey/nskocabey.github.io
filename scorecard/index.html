@@ -92,17 +92,14 @@
 
         const getWeekStart = date => {
             const eastern = toEasternTime(date);
+            const daysSinceSunday = eastern.getDay();
+            const hoursSinceNoon = eastern.getHours() >= 12 ? 0 : -1;
             
-            const dayOfWeek = eastern.getDay();
-            const thisSunday = new Date(eastern);
-            thisSunday.setDate(eastern.getDate() - dayOfWeek);
-            thisSunday.setHours(12, 0, 0, 0);
+            const sunday = new Date(eastern);
+            sunday.setDate(eastern.getDate() - daysSinceSunday + (hoursSinceNoon < 0 ? -7 : 0));
+            sunday.setHours(12, 0, 0, 0);
             
-            if (eastern < thisSunday) {
-                thisSunday.setDate(thisSunday.getDate() - 7);
-            }
-            
-            return new Date(thisSunday.getTime() + 4 * 3600000);
+            return new Date(sunday.getTime() + 4 * 3600000);
         };
 
         const generateWeeks = (start, end) => {
