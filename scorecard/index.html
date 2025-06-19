@@ -132,7 +132,7 @@
             const now = new Date();
             const currentWeekStart = getWeekStart(now);
             const tenWeeksAgo = new Date(currentWeekStart);
-            tenWeeksAgo.setDate(currentWeekStart.getDate() - 70);
+            tenWeeksAgo.setDate(currentWeekStart.getDate() - 7 * 15);
 
             const weeks = generateWeeks(tenWeeksAgo, currentWeekStart);
 
