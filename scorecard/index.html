@@ -158,7 +158,7 @@
 
             const now = new Date();
             const currentWeekStart = getWeekStart(now);
-            const completed = weeklyData.filter(w => w.startDate < currentWeekStart).slice(-12);
+            const completed = weeklyData.filter(w => w.startDate < currentWeekStart).slice(-16);
             const current = weeklyData.find(w => w.startDate.getTime() === currentWeekStart.getTime());
             
             const maxValue = Math.max(...weeklyData.map(w => w.totalSeconds));
