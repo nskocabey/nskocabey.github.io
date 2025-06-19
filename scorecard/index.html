@@ -87,12 +87,7 @@
         const formatHours = s => (s / 3600).toFixed(1);
 
         const toEasternTime = utcDate => {
-            const utcTime = utcDate.getTime();
-            const jan1 = new Date(utcDate.getFullYear(), 0, 1);
-            const jul1 = new Date(utcDate.getFullYear(), 6, 1);
-            const isDST = Math.max(jan1.getTimezoneOffset(), jul1.getTimezoneOffset()) !== utcDate.getTimezoneOffset();
-            const easternOffset = isDST ? 4 : 5;
-            return new Date(utcTime - easternOffset * 3600000);
+            return new Date(utcDate.getTime() - 4 * 3600000);
         };
 
         const getWeekStart = date => {
