@@ -86,20 +86,21 @@
     <script>
         const formatHours = s => (s / 3600).toFixed(1);
 
-        const toEastern = date => {
-            const utc = new Date(date.getTime() + date.getTimezoneOffset() * 60000);
-            const isDST = (d => {
-                const jan = new Date(d.getFullYear(), 0, 1).getTimezoneOffset();
-                const jul = new Date(d.getFullYear(), 6, 1).getTimezoneOffset();
-                return Math.max(jan, jul) !== d.getTimezoneOffset();
-            })(utc);
-            return new Date(utc.getTime() - (isDST ? 4 : 5) * 3600000);
+        const toEasternTime = utcDate => {
+            const utcTime = utcDate.getTime();
+            const jan1 = new Date(utcDate.getFullYear(), 0, 1);
+            const jul1 = new Date(utcDate.getFullYear(), 6, 1);
+            const isDST = Math.max(jan1.getTimezoneOffset(), jul1.getTimezoneOffset()) !== utcDate.getTimezoneOffset();
+            const easternOffset = isDST ? 4 : 5;
+            return new Date(utcTime - easternOffset * 3600000);
         };
 
         const getWeekStart = date => {
-            const eastern = toEastern(date);
+            const eastern = toEasternTime(date);
+            const dayOfWeek = eastern.getDay();
+            const daysToSubtract = dayOfWeek;
             const sunday = new Date(eastern);
-            sunday.setDate(eastern.getDate() - eastern.getDay());
+            sunday.setDate(eastern.getDate() - daysToSubtract);
             sunday.setHours(12, 0, 0, 0);
             return sunday;
         };
@@ -128,7 +129,8 @@
                 })
                 .filter(Boolean);
 
-            const currentWeekStart = getWeekStart(new Date());
+            const now = new Date();
+            const currentWeekStart = getWeekStart(now);
             const tenWeeksAgo = new Date(currentWeekStart);
             tenWeeksAgo.setDate(currentWeekStart.getDate() - 70);
 
@@ -154,7 +156,8 @@
             container.innerHTML = '';
             if (!weeklyData.length) return;
 
-            const currentWeekStart = getWeekStart(new Date());
+            const now = new Date();
+            const currentWeekStart = getWeekStart(now);
             const completed = weeklyData.filter(w => w.startDate < currentWeekStart).slice(-12);
             const current = weeklyData.find(w => w.startDate.getTime() === currentWeekStart.getTime());
             
