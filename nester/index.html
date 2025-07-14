@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <title>Nester</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{
+      font-family:system-ui,sans-serif;
+      background:linear-gradient(135deg,#24252b 0%,#1f1c21 100%);
+      overflow:hidden;height:100vh
+    }
+    #controls{
+      position:fixed;top:20px;left:20px;
+      background:rgba(255,255,255,.95);backdrop-filter:blur(10px);
+      padding:20px;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.1);
+      width:280px;z-index:10;max-height:90vh;overflow-y:auto
+    }
+    button{
+      background:linear-gradient(135deg,#667eea,#764ba2);
+      color:#fff;border:none;padding:12px 16px;border-radius:8px;
+      cursor:pointer;width:100%;margin-bottom:10px;font-size:14px;font-weight:600;transition:.3s;
+      box-shadow:0 4px 15px rgba(0,0,0,.2)
+    }
+    button:hover{transform:translateY(-2px);box-shadow:0 8px 25px rgba(0,0,0,.3)}
+    button:active{transform:translateY(0)}
+    .load{background:linear-gradient(135deg,#11998e,#38ef7d)}
+    .clear{background:linear-gradient(135deg,#ff416c,#ff4b2b)}
+    .export{background:linear-gradient(135deg,#4facfe,#00f2fe)}
+    label{display:block;font-size:13px;margin:12px 0 6px;color:#333;font-weight:600}
+    label span{float:right;color:#667eea;font-weight:700}
+    input[type=range]{
+      width:100%;margin-bottom:10px;height:6px;background:#ddd;border-radius:3px;outline:none;-webkit-appearance:none
+    }
+    input[type=range]::-webkit-slider-thumb{
+      -webkit-appearance:none;width:18px;height:18px;
+      background:linear-gradient(135deg,#667eea,#764ba2);
+      border-radius:50%;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.2)
+    }
+    #canvas-container{display:flex;justify-content:center;align-items:center;height:100vh;width:100%;padding:20px}
+    .canvas-layout{position:relative}
+    #svgCanvas{
+      background:#fff;display:block;cursor:grab;
+      box-shadow:0 20px 60px rgba(0,0,0,.3);
+      border:2px solid red
+    }
+    #svgCanvas:active{cursor:grabbing}
+    .svg-shape{cursor:grab;transition:filter .2s}
+    .svg-shape:hover{filter:brightness(1.1) drop-shadow(0 4px 8px rgba(0,0,0,.2))}
+    .svg-shape.dragging{filter:brightness(1.2) drop-shadow(0 8px 16px rgba(0,0,0,.3))}
+  </style>
+</head>
+<body>
+  <div id="controls">
+    <h3 style="margin-bottom:15px;color:#333;text-align:center">Nester</h3>
+
+    <button class="load" onclick="document.getElementById('svg-upload').click()">📁 SVG Dosyalarını Yükle</button>
+    <input type="file" id="svg-upload" accept=".svg,image/svg+xml" multiple style="display:none" onchange="load_svgs(event)">
+
+    <button class="clear"  onclick="clear_all()">🗑️ Hepsini Temizle</button>
+    <button class="export" onclick="export_svg()">💾 Kaydet</button>
+
+    <label>Genişlik: <span id="wVal">1024 px</span></label>
+    <input type="range" id="width"  min="200" max="2000" value="1024" step="10" oninput="update_canvas()">
+
+    <label>Yükseklik: <span id="hVal">768 px</span></label>
+    <input type="range" id="height" min="200" max="2000" value="768"  step="10" oninput="update_canvas()">
+
+    <label>Çekim Kuvveti: <span id="aVal">0.15</span></label>
+    <input type="range" id="attraction" min="0" max="0.5" value="0.15" step="0.01" oninput="update_attraction()">
+
+    <label>Boşluk Mesafesi: <span id="eVal">5</span></label>
+    <input type="range" id="extension" min="0" max="20" value="5" step="1" oninput="update_extension()">
+
+    <div style="margin-top:12px">
+      <label><input type="checkbox" id="showBodies"  onchange="toggle_overlays()"> Gövde Kenarları</label>
+      <label><input type="checkbox" id="showPerim"   onchange="toggle_overlays()"> Perimetre Mesafesi</label>
+    </div>
+  </div>
+
+  <div id="canvas-container">
+    <div class="canvas-layout">
+      <svg id="svgCanvas" xmlns="http://www.w3.org/2000/svg"></svg>
+    </div>
+  </div>
+
+  <!-- libs -->
+  <script src="https://cdn.jsdelivr.net/npm/pathseg@1.2.1/pathseg.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/poly-decomp@0.3.0/build/decomp.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/clipper-lib@6.4.2/clipper.js"></script>
+
+  <script>
+    /* aliases */
+    const {Engine,Runner,World,Bodies,Body,Svg,Events,Vertices,Query}=Matter;
+
+    /* globals */
+    let canvasWidth=1024,canvasHeight=768;
+    let attractionForce=0.15,repulsionForce=0.5,extensionPx=5;
+    const WALL_THICK=3;
+    let walls=[],svgShapes=[],ClipperLib;
+    const engine=Engine.create();engine.gravity.y=0;engine.gravity.scale=0;
+    const svgCanvas=document.getElementById('svgCanvas');
+
+    /* debug overlay flags */
+    let showBodies=false,showPerim=false;
+    function toggle_overlays(){
+      showBodies=document.getElementById('showBodies').checked;
+      showPerim =document.getElementById('showPerim').checked;
+      render_svg_shapes();
+    }
+
+    /* init */
+    function init_physics(){
+      if(!window.ClipperLib){return setTimeout(init_physics,100);}
+      ClipperLib=window.ClipperLib;
+      setup_interactions();
+      create_walls();update_canvas();
+      Runner.run(Runner.create(),engine);
+      Events.on(engine,'collisionActive',apply_repulsion_on_collision);
+      Events.on(engine,'beforeUpdate',apply_attraction_force);
+      render_loop();
+    }
+
+    /* interactions */
+    svgCanvas.addEventListener('contextmenu',right_click);  // registered early
+    function setup_interactions(){
+      svgCanvas.addEventListener('mousedown',mouse_down);
+      svgCanvas.addEventListener('mousemove',mouse_move);
+      svgCanvas.addEventListener('mouseup',  mouse_up);
+      svgCanvas.addEventListener('wheel',    mouse_wheel,{passive:false});
+      svgCanvas.addEventListener('mouseleave',mouse_up);
+      svgCanvas.addEventListener('touchstart',t_start,{passive:false});
+      svgCanvas.addEventListener('touchmove', t_move ,{passive:false});
+      svgCanvas.addEventListener('touchend',  t_end  ,{passive:false});
+    }
+    let selectedBody=null,isDragging=false,dragOffset={x:0,y:0};
+    const toSvg=e=>{const r=svgCanvas.getBoundingClientRect();return{x:(e.clientX-r.left)*canvasWidth/r.width,y:(e.clientY-r.top)*canvasHeight/r.height};};
+    const bodyAt=p=>{const a=Query.point(svgShapes,p);return a.length?a[0]:null;};
+    function mouse_down(e){const p=toSvg(e),b=bodyAt(p);if(b){selectedBody=b;isDragging=true;dragOffset={x:p.x-b.position.x,y:p.y-b.position.y};document.getElementById(`shape-${svgShapes.indexOf(b)}`)?.classList.add('dragging');}}
+    function mouse_move(e){if(!isDragging||!selectedBody)return;const p=toSvg(e);Body.setPosition(selectedBody,{x:Math.max(WALL_THICK,Math.min(canvasWidth-WALL_THICK,p.x-dragOffset.x)),y:Math.max(WALL_THICK,Math.min(canvasHeight-WALL_THICK,p.y-dragOffset.y))});Body.setVelocity(selectedBody,{x:0,y:0});Body.setAngularVelocity(selectedBody,0);}
+    function mouse_up(){if(selectedBody){document.getElementById(`shape-${svgShapes.indexOf(selectedBody)}`)?.classList.remove('dragging');}selectedBody=null;isDragging=false;}
+    function mouse_wheel(e){e.preventDefault();const b=bodyAt(toSvg(e));if(b){Body.rotate(b,e.deltaY*-0.005);Body.setAngularVelocity(b,0);}}
+    function right_click(e){e.preventDefault();const b=bodyAt(toSvg(e));if(b&&!b.isStatic){World.remove(engine.world,b);svgShapes=svgShapes.filter(x=>x!==b);render_svg_shapes();}}
+
+    /* touch wrappers */
+    const t_start=e=>{e.preventDefault();if(e.touches.length===1)mouse_down(e.touches[0]);};
+    const t_move =e=>{e.preventDefault();if(e.touches.length===1)mouse_move(e.touches[0]);};
+    const t_end  =e=>{e.preventDefault();mouse_up();};
+
+    /* helpers */
+    function extend_polygon(verts,ext){
+      if(!ClipperLib||verts.length<3)return verts;
+      const s=100,off=new ClipperLib.ClipperOffset();
+      off.AddPath(verts.map(v=>({X:Math.round(v.x*s),Y:Math.round(v.y*s)})),ClipperLib.JoinType.jtSquare,ClipperLib.EndType.etClosedPolygon);
+      const sol=new ClipperLib.Paths();off.Execute(sol,ext*s);
+      return sol.length?sol[0].map(p=>({x:p.X/s,y:p.Y/s})):verts;
+    }
+
+    function extract_elements(svgDoc){
+      const arr=[];svgDoc.querySelectorAll('path,circle,rect,ellipse,polygon,polyline').forEach(el=>{
+        try{
+          let v=null,cl=el.cloneNode(true);
+          if(el.tagName==='path')v=Svg.pathToVertices(el,25);
+          else if(el.tagName==='circle'){
+            const cx=+el.getAttribute('cx')||0,cy=+el.getAttribute('cy')||0,r=+el.getAttribute('r')||10;
+            v=[...Array(24)].map((_,i)=>{const a=i/24*2*Math.PI;return{x:cx+r*Math.cos(a),y:cy+r*Math.sin(a)}});
+          }else if(el.tagName==='rect'){
+            const x=+el.getAttribute('x')||0,y=+el.getAttribute('y')||0,w=+el.getAttribute('width')||10,h=+el.getAttribute('height')||10;
+            v=[{x,y},{x:x+w,y},{x:x+w,y:y+h},{x,y:y+h}];
+          }
+          if(v&&v.length>=3&&Math.abs(Vertices.area(v))>200)arr.push({vertices:v,originalElement:cl,area:Math.abs(Vertices.area(v))});
+        }catch(err){console.error(err);}
+      });
+      return arr.sort((a,b)=>b.area-a.area);
+    }
+    function create_body(d,x,y){
+      const ext=extend_polygon(d.vertices,extensionPx);
+      const b=Bodies.fromVertices(x,y,[ext],{frictionAir:.08,restitution:.8,friction:.1,density:.001},true);
+      if(b){b.originalVertices=d.vertices;b.originalElement=d.originalElement;svgShapes.push(b);World.add(engine.world,b);}
+    }
+
+    /* load */
+    async function load_svgs(e){
+      for(const f of [...e.target.files]){
+        const doc=new DOMParser().parseFromString(await f.text(),"image/svg+xml");
+        extract_elements(doc).slice(0,5).forEach((d,i)=>{const ang=i/5*2*Math.PI,rad=Math.min(canvasWidth,canvasHeight)*.2;create_body(d,canvasWidth/2+rad*Math.cos(ang),canvasHeight/2+rad*Math.sin(ang));});
+      }
+      e.target.value='';render_svg_shapes();
+    }
+
+    /* controls */
+    function clear_all(){World.remove(engine.world,svgShapes);svgShapes=[];selectedBody=null;isDragging=false;render_svg_shapes();}
+    function update_canvas(){canvasWidth=+width.value;canvasHeight=+height.value;wVal.textContent=`${canvasWidth} px`;hVal.textContent=`${canvasHeight} px`;svgCanvas.setAttribute('viewBox',`0 0 ${canvasWidth} ${canvasHeight}`);svgCanvas.style.width=canvasWidth+'px';svgCanvas.style.height=canvasHeight+'px';svgCanvas.setAttribute('width',canvasWidth);svgCanvas.setAttribute('height',canvasHeight);create_walls();render_svg_shapes();}
+    const update_attraction=()=>{attractionForce=+attraction.value;aVal.textContent=attractionForce.toFixed(2);};
+    function update_extension(){extensionPx=+extension.value;eVal.textContent=extensionPx;}
+
+    /* walls */
+    function create_walls(){
+      walls.forEach(w=>World.remove(engine.world,w));
+      walls=[
+        Bodies.rectangle(canvasWidth/2,-WALL_THICK/2,canvasWidth,WALL_THICK,{isStatic:true}),
+        Bodies.rectangle(canvasWidth/2,canvasHeight+WALL_THICK/2,canvasWidth,WALL_THICK,{isStatic:true}),
+        Bodies.rectangle(-WALL_THICK/2,canvasHeight/2,WALL_THICK,canvasHeight,{isStatic:true}),
+        Bodies.rectangle(canvasWidth+WALL_THICK/2,canvasHeight/2,WALL_THICK,canvasHeight,{isStatic:true})
+      ];
+      World.add(engine.world,walls);
+    }
+
+    /* forces */
+    const apply_repulsion_on_collision=e=>{if(repulsionForce<=0)return;e.pairs.forEach(({bodyA,bodyB,collision:{normal,depth}})=>{if(bodyA.isStatic||bodyB.isStatic)return;const f=repulsionForce*depth*0.005;Body.applyForce(bodyA,bodyA.position,{x:-normal.x*f,y:-normal.y*f});Body.applyForce(bodyB,bodyB.position,{x: normal.x*f,y: normal.y*f});});};
+    function apply_attraction_force(){if(isDragging||attractionForce<=0)return;for(let i=0;i<svgShapes.length;i++)for(let j=i+1;j<svgShapes.length;j++){const A=svgShapes[i],B=svgShapes[j],dx=B.position.x-A.position.x,dy=B.position.y-A.position.y,d2=dx*dx+dy*dy;if(d2>2500&&d2<160000){const d=Math.sqrt(d2),f=(attractionForce*A.mass*B.mass)/d2,fx=dx/d*f,fy=dy/d*f;Body.applyForce(A,A.position,{x: fx,y: fy});Body.applyForce(B,B.position,{x:-fx,y:-fy});}}}
+
+    /* render */
+    function render_svg_shapes(){
+      while(svgCanvas.firstChild)svgCanvas.removeChild(svgCanvas.firstChild);
+
+      /* shapes + optional overlay per shape */
+      svgShapes.forEach((b,i)=>{
+        if(!b.originalElement)return;
+        const g=document.createElementNS('http://www.w3.org/2000/svg','g');
+        g.setAttribute('id',`shape-${i}`);g.classList.add('svg-shape');
+        g.setAttribute('transform',`translate(${b.position.x},${b.position.y}) rotate(${b.angle*180/Math.PI})`);
+        const clone=b.originalElement.cloneNode(true),ctr=Vertices.centre(b.originalVertices),tx=-ctr.x,ty=-ctr.y;
+        if(clone.tagName==='path'){clone.setAttribute('transform',`translate(${tx},${ty})`);}
+        else if(clone.tagName==='circle'){clone.setAttribute('cx',(+clone.getAttribute('cx')||0)+tx);clone.setAttribute('cy',(+clone.getAttribute('cy')||0)+ty);}
+        else if(clone.tagName==='rect'){clone.setAttribute('x',(+clone.getAttribute('x')||0)+tx);clone.setAttribute('y',(+clone.getAttribute('y')||0)+ty);}
+        clone.style.filter='drop-shadow(0 2px 4px rgba(0,0,0,.1))';
+        g.appendChild(clone);
+
+        /* body outline */
+        if(showBodies){
+          const p=document.createElementNS('http://www.w3.org/2000/svg','path');
+          const verts=b.vertices.map(v=>{const lx=v.x-b.position.x,ly=v.y-b.position.y;return{x:lx*Math.cos(-b.angle)-ly*Math.sin(-b.angle),y:lx*Math.sin(-b.angle)+ly*Math.cos(-b.angle)};});
+          p.setAttribute('d','M '+verts.map(v=>`${v.x} ${v.y}`).join(' L ')+' Z');
+          p.setAttribute('fill','none');p.setAttribute('stroke','#0066cc');p.setAttribute('stroke-dasharray','4,4');p.setAttribute('stroke-width','1.5');
+          g.appendChild(p);
+        }
+
+        /* perimeter overlay */
+        if(showPerim){
+          const ext=extend_polygon(b.originalVertices,extensionPx);
+          const verts=ext.map(v=>({x:v.x-ctr.x,y:v.y-ctr.y}));
+          const p=document.createElementNS('http://www.w3.org/2000/svg','path');
+          p.setAttribute('d','M '+verts.map(v=>`${v.x} ${v.y}`).join(' L ')+' Z');
+          p.setAttribute('fill','none');p.setAttribute('stroke','green');p.setAttribute('stroke-width','1');
+          g.appendChild(p);
+        }
+        svgCanvas.appendChild(g);
+      });
+
+      /* visual border (walls) */
+      const border=document.createElementNS('http://www.w3.org/2000/svg','rect');
+      border.setAttribute('x',0);border.setAttribute('y',0);
+      border.setAttribute('width',canvasWidth);border.setAttribute('height',canvasHeight);
+      border.setAttribute('fill','none');border.setAttribute('stroke','red');border.setAttribute('stroke-width',WALL_THICK);
+      svgCanvas.appendChild(border);
+    }
+
+    /* export (unchanged) */
+    function export_svg(){
+      const out=document.createElementNS('http://www.w3.org/2000/svg','svg');
+      out.setAttribute('viewBox',`0 0 ${canvasWidth} ${canvasHeight}`);
+      out.setAttribute('xmlns','http://www.w3.org/2000/svg');
+      out.setAttribute('width',canvasWidth);out.setAttribute('height',canvasHeight);
+
+      /* border */
+      const border=document.createElementNS('http://www.w3.org/2000/svg','rect');
+      border.setAttribute('x',0);border.setAttribute('y',0);border.setAttribute('width',canvasWidth);border.setAttribute('height',canvasHeight);
+      border.setAttribute('fill','none');border.setAttribute('stroke','red');border.setAttribute('stroke-width',WALL_THICK);
+      out.appendChild(border);
+
+      svgShapes.forEach(b=>{
+        const g=document.createElementNS('http://www.w3.org/2000/svg','g');
+        g.setAttribute('transform',`translate(${b.position.x},${b.position.y}) rotate(${b.angle*180/Math.PI})`);
+        const c=b.originalElement.cloneNode(true),ctr=Vertices.centre(b.originalVertices),tx=-ctr.x,ty=-ctr.y;
+        if(c.tagName==='path'){c.setAttribute('transform',`translate(${tx},${ty})`);}
+        else if(c.tagName==='circle'){c.setAttribute('cx',(+c.getAttribute('cx')||0)+tx);c.setAttribute('cy',(+c.getAttribute('cy')||0)+ty);}
+        else if(c.tagName==='rect'){c.setAttribute('x',(+c.getAttribute('x')||0)+tx);c.setAttribute('y',(+c.getAttribute('y')||0)+ty);}
+        g.appendChild(c);out.appendChild(g);
+      });
+
+      const blob=new Blob(['<?xml version="1.0" encoding="UTF-8"?>\n'+out.outerHTML],{type:'image/svg+xml'});
+      const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=`nester-${Date.now()}.svg`;a.click();URL.revokeObjectURL(url);
+    }
+
+    /* loop */
+    function render_loop(){render_svg_shapes();requestAnimationFrame(render_loop);}
+    init_physics();
+  </script>
+</body>
+</html>
