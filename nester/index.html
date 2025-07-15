@@ -877,8 +877,8 @@
         const clone = body.originalElement.cloneNode(true);
         const center = Vertices.centre(body.originalVertices);
         const offset = body.centerOffset || { x: 0, y: 0 };
-        const translateX = -center.x - offset.x;
-        const translateY = -center.y - offset.y;
+        let translateX = -center.x - offset.x;
+        let translateY = -center.y - offset.y;
 
         if (body.originalSvgRoot && body.originalSvgRoot.hasAttribute('data-pdf-height')) {
             translateX -= 1;
