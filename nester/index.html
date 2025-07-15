@@ -158,13 +158,13 @@
   <div id="controls">
     <h3>Nester</h3>
     
-    <button class="load" onclick="document.getElementById('svg-upload').click()">
-      📁 SVG Dosyalarını Yükle
+    <button class="load" onclick="document.getElementById('file-upload').click()">
+      📁 Dosya Yükle
     </button>
-    <input type="file" id="svg-upload" accept=".svg,image/svg+xml" multiple style="display:none" onchange="load_svgs(event)">
+    <input type="file" id="file-upload" accept=".svg,image/svg+xml,.pdf" multiple style="display:none" onchange="load_files(event)">
     
     <button class="clear" onclick="clear_all()">🗑️ Hepsini Temizle</button>
-    <button class="export" onclick="export_pdf()">💾 PDF Kaydet</button>
+    <button class="export" onclick="export_svg()">💾 SVG Kaydet</button>
     
     <label>Genişlik: <span id="wVal">29.7 cm</span></label>
     <input type="range" id="width" min="10" max="50" value="29.7" step="0.1" oninput="update_canvas()">
@@ -205,10 +205,15 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/clipper-lib@6.4.2/clipper.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/svg2pdf.js@2.2.2/dist/svg2pdf.umd.min.js"></script>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 
   <script>
     const { Engine, Runner, World, Bodies, Body, Events, Vertices, Query, Render, Bounds } = Matter;
+    const { pdfjsLib } = window;
+    if (pdfjsLib) {
+      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    }
 
     const DPI = 72;
     const INCH_TO_CM = 2.54;
@@ -513,12 +518,28 @@
         originalElement: group,
         area: largestPath.area,
         svgRoot: svgRoot,
+        pdfHeight: svgRoot.getAttribute('data-pdf-height')
       }];
     }
 
     function create_body(data, x, y) {
-      const extendedVertices = extend_polygon(data.vertices, spacingPx);
-      const originalCenter = Vertices.centre(data.vertices);
+      let bodyVertices = data.vertices;
+      if (data.pdfHeight) {
+          const h = +data.pdfHeight;
+          bodyVertices = bodyVertices.map(v => ({ x: v.x, y: h - v.y }));
+          
+          if (data.originalElement) {
+              const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+              g.setAttribute('transform', `scale(1, -1) translate(0, -${h})`);
+              while(data.originalElement.firstChild) {
+                  g.appendChild(data.originalElement.firstChild);
+              }
+              data.originalElement = g;
+          }
+      }
+      
+      const extendedVertices = extend_polygon(bodyVertices, spacingPx);
+      const originalCenter = Vertices.centre(bodyVertices);
       const extendedCenter = Vertices.centre(extendedVertices);
       const centerOffset = {
         x: extendedCenter.x - originalCenter.x,
@@ -533,7 +554,7 @@
       }, true);
       
       if (body) {
-        body.originalVertices = data.vertices;
+        body.originalVertices = bodyVertices;
         body.originalElement = data.originalElement;
         body.centerOffset = centerOffset;
         body.originalSvgRoot = data.svgRoot;
@@ -542,20 +563,64 @@
       }
     }
 
-    async function load_svgs(e) {
+    async function convert_pdf_to_svg_docs(file) {
+      if (!pdfjsLib) {
+        console.error("pdf.js is not loaded.");
+        return [];
+      }
+      const arrayBuffer = await file.arrayBuffer();
+      const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+      const pdf = await loadingTask.promise;
+      const svgDocs = [];
+
+      for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+        const page = await pdf.getPage(pageNum);
+        const viewport = page.getViewport({ scale: 1.0 });
+
+        const operatorList = await page.getOperatorList();
+        const svgGfx = new pdfjsLib.SVGGraphics(page.commonObjs, page.objs);
+        svgGfx.embedFonts = true;
+        const svg = await svgGfx.getSVG(operatorList, viewport);
+
+        svg.setAttribute('data-pdf-height', viewport.height);
+
+        const serializer = new XMLSerializer();
+        const svgString = serializer.serializeToString(svg);
+        const doc = new DOMParser().parseFromString(svgString, "image/svg+xml");
+        svgDocs.push(doc);
+      }
+      return svgDocs;
+    }
+
+    function process_svg_doc(doc) {
+      svgFileCounter++;
+      rewrite_svg_ids(doc, `_nester_${svgFileCounter}`);
+
+      const elements = extract_elements(doc);
+
+      if (elements.length > 0) {
+        const x = canvasWidth / 2 + (Math.random() - 0.5) * 100;
+        const y = canvasHeight / 2 + (Math.random() - 0.5) * 100;
+        create_body(elements[0], x, y);
+      }
+    }
+
+    async function load_files(e) {
       for (const file of [...e.target.files]) {
-        const text = await file.text();
-        const doc = new DOMParser().parseFromString(text, "image/svg+xml");
-
-        svgFileCounter++;
-        rewrite_svg_ids(doc, `_nester_${svgFileCounter}`);
-
-        const elements = extract_elements(doc);
-
-        if (elements.length > 0) {
-          const x = canvasWidth / 2 + (Math.random() - 0.5) * 100;
-          const y = canvasHeight / 2 + (Math.random() - 0.5) * 100;
-          create_body(elements[0], x, y);
+        if (file.type === 'image/svg+xml') {
+          const text = await file.text();
+          const doc = new DOMParser().parseFromString(text, "image/svg+xml");
+          process_svg_doc(doc);
+        } else if (file.type === 'application/pdf') {
+          try {
+            const svgDocs = await convert_pdf_to_svg_docs(file);
+            for (const doc of svgDocs) {
+              process_svg_doc(doc);
+            }
+          } catch (error) {
+            console.error('Error converting PDF:', error);
+            alert('Failed to convert PDF to SVG.');
+          }
         }
       }
 
@@ -717,8 +782,14 @@
         const clone = body.originalElement.cloneNode(true);
         const center = Vertices.centre(body.originalVertices);
         const offset = body.centerOffset || { x: 0, y: 0 };
-        const translateX = -center.x - offset.x;
-        const translateY = -center.y - offset.y;
+        
+        let translateX = -center.x - offset.x;
+        let translateY = -center.y - offset.y;
+        
+        if (body.originalSvgRoot && body.originalSvgRoot.hasAttribute('data-pdf-height')) {
+            translateX -= 1;
+            translateY += 1;
+        }
 
         clone.setAttribute('transform', `translate(${translateX},${translateY})`);
         clone.style.filter = 'drop-shadow(0 2px 4px rgba(0,0,0,.1))';
@@ -754,24 +825,13 @@
       svgCanvas.appendChild(border);
     }
 
-    async function export_pdf() {
-      const { jsPDF } = window.jspdf;
-      
-      const textHeight = 30;
-      const pdfWidth = canvasWidth;
-      const pdfHeight = canvasHeight + textHeight;
-
-      const doc = new jsPDF({
-        orientation: pdfWidth > canvasHeight ? 'landscape' : 'portrait',
-        unit: 'pt',
-        format: [pdfWidth, pdfHeight]
-      });
-
+    function export_svg() {
       const output = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-      output.setAttribute('viewBox', `0 0 ${canvasWidth} ${canvasHeight}`);
+      const textHeight = 30;
+      output.setAttribute('viewBox', `0 ${-textHeight} ${canvasWidth} ${canvasHeight + textHeight}`);
       output.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
       output.setAttribute('width', canvasWidth);
-      output.setAttribute('height', canvasHeight);
+      output.setAttribute('height', canvasHeight + textHeight);
 
       const namespaces = {};
       svgShapes.forEach(body => {
@@ -796,17 +856,19 @@
       border.setAttribute('fill', 'none');
       border.setAttribute('stroke', 'red');
       border.setAttribute('stroke-width', WALL_THICK);
+
+      const dimText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      dimText.setAttribute('x', canvasWidth / 2);
+      dimText.setAttribute('y', -textHeight / 2);
+      dimText.setAttribute('dominant-baseline', 'middle');
+      dimText.setAttribute('text-anchor', 'middle');
+      dimText.setAttribute('font-size', '20');
+      dimText.setAttribute('fill', 'red');
+      dimText.setAttribute('font-weight', 'bold');
+      dimText.textContent = `${canvasWidthCm.toFixed(0)}x${canvasHeightCm.toFixed(1)}cm`;
+      output.appendChild(dimText);
+
       output.appendChild(border);
-      
-      doc.setFontSize(20);
-      doc.setFont(undefined, 'bold');
-      doc.setTextColor(255, 0, 0);
-      doc.text(
-        `${canvasWidthCm.toFixed(1)}x${canvasHeightCm.toFixed(1)}cm`,
-        pdfWidth / 2,
-        textHeight / 2,
-        { align: 'center', baseline: 'middle' }
-      );
 
       svgShapes.forEach(body => {
         const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
@@ -823,15 +885,17 @@
         group.appendChild(clone);
         output.appendChild(group);
       });
+
+      const blob = new Blob([
+        '<?xml version="1.0" encoding="UTF-8"?>\n' + output.outerHTML
+      ], { type: 'image/svg+xml' });
       
-      doc.svg(output, {
-        x: 0,
-        y: textHeight,
-        width: canvasWidth,
-        height: canvasHeight,
-      }).then(() => {
-        doc.save(`nester-${Date.now()}.pdf`);
-      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `nester-${Date.now()}.svg`;
+      link.click();
+      URL.revokeObjectURL(url);
     }
 
     function handle_key_down(e) {
