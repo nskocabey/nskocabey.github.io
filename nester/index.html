@@ -879,6 +879,11 @@
         const offset = body.centerOffset || { x: 0, y: 0 };
         const translateX = -center.x - offset.x;
         const translateY = -center.y - offset.y;
+
+        if (body.originalSvgRoot && body.originalSvgRoot.hasAttribute('data-pdf-height')) {
+            translateX -= 1;
+            translateY += 1;
+        }
         
         clone.setAttribute('transform', `translate(${translateX},${translateY})`);
         
