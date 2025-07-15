@@ -149,6 +149,10 @@
       filter: brightness(1.2) drop-shadow(0 8px 16px rgba(0, 0, 0, 0.3));
     }
     
+    .svg-shape.selected {
+      filter: drop-shadow(0 0 3px #667eea) drop-shadow(0 0 5px #667eea);
+    }
+
     .hidden {
       display: none !important;
     }
@@ -185,6 +189,11 @@
 
     <div id="instructions" style="margin-top: 20px; padding: 10px; border: 1px solid #ddd; border-radius: 8px; background: #f9f9f9;">
         <h4 style="margin-bottom: 8px; color: #333;">Kısayollar</h4>
+        <p style="font-size: 12px; color: #555; margin-bottom: 5px;"><strong>Shift + Tık:</strong> Çoklu seçim</p>
+        <p style="font-size: 12px; color: #555; margin-bottom: 5px;"><strong>Ctrl/Cmd + C:</strong> Seçili öğeleri kopyala</p>
+        <p style="font-size: 12px; color: #555; margin-bottom: 5px;"><strong>Ctrl/Cmd + V:</strong> Kopyalanan öğeleri yapıştır</p>
+        <p style="font-size: 12px; color: #555; margin-bottom: 5px;"><strong>Sağ Tık:</strong> Seçili öğeyi/öğeleri sil</p>
+        <p style="font-size: 12px; color: #555; margin-bottom: 5px;"><strong>Fare Tekerleği:</strong> Seçili öğeyi/öğeleri döndür</p>
         <p style="font-size: 12px; color: #555; margin-bottom: 5px;"><strong>Ok Tuşları:</strong> Genişlik/yükseklik ayarı</p>
         <p style="font-size: 12px; color: #555;"><strong>Boşluk Tuşu:</strong> Çekim kuvvetini aç/kapat</p>
     </div>
@@ -231,7 +240,9 @@
     let spacingPx = mm_to_px(spacingMM / 2);
     let showPerim = false;
     let showEngine = false;
-    let selectedBody = null;
+    let selectedBodies = [];
+    let activeDragBody = null;
+    let clipboard = [];
     let isDragging = false;
     let dragOffset = { x: 0, y: 0 };
 
@@ -370,42 +381,66 @@
       const body = body_at_point(point);
       
       if (body) {
-        selectedBody = body;
+        if (e.shiftKey) {
+          const index = selectedBodies.indexOf(body);
+          if (index > -1) {
+            selectedBodies.splice(index, 1);
+          } else {
+            selectedBodies.push(body);
+          }
+        } else {
+          if (selectedBodies.indexOf(body) === -1) {
+            selectedBodies = [body];
+          }
+        }
+        
         isDragging = true;
+        activeDragBody = body;
         dragOffset = {
-          x: point.x - body.position.x,
-          y: point.y - body.position.y
+          x: point.x - activeDragBody.position.x,
+          y: point.y - activeDragBody.position.y
         };
-        document.getElementById(`shape-${svgShapes.indexOf(body)}`)?.classList.add('dragging');
+
+      } else {
+        if (!e.shiftKey) {
+          selectedBodies = [];
+        }
       }
+      render_svg_shapes();
     }
 
     function mouse_move(e) {
-      if (!isDragging || !selectedBody) return;
+      if (!isDragging || !activeDragBody) return;
       
       const point = to_svg_coords(e);
-      const newX = Math.max(WALL_THICK, Math.min(canvasWidth - WALL_THICK, point.x - dragOffset.x));
-      const newY = Math.max(WALL_THICK, Math.min(canvasHeight - WALL_THICK, point.y - dragOffset.y));
+      const newX = point.x - dragOffset.x;
+      const newY = point.y - dragOffset.y;
       
-      Body.setPosition(selectedBody, { x: newX, y: newY });
-      Body.setVelocity(selectedBody, { x: 0, y: 0 });
-      Body.setAngularVelocity(selectedBody, 0);
+      const dx = newX - activeDragBody.position.x;
+      const dy = newY - activeDragBody.position.y;
+      
+      selectedBodies.forEach(body => {
+          Body.setPosition(body, { x: body.position.x + dx, y: body.position.y + dy });
+          Body.setVelocity(body, { x: 0, y: 0 });
+          Body.setAngularVelocity(body, 0);
+      });
     }
 
     function mouse_up() {
-      if (selectedBody) {
-        document.getElementById(`shape-${svgShapes.indexOf(selectedBody)}`)?.classList.remove('dragging');
-      }
-      selectedBody = null;
       isDragging = false;
+      activeDragBody = null;
+      render_svg_shapes();
     }
 
     function mouse_wheel(e) {
       e.preventDefault();
       const body = body_at_point(to_svg_coords(e));
       if (body) {
-        Body.rotate(body, e.deltaY * -0.005);
-        Body.setAngularVelocity(body, 0);
+        const bodiesToRotate = selectedBodies.includes(body) ? selectedBodies : [body];
+        bodiesToRotate.forEach(b => {
+            Body.rotate(b, e.deltaY * -0.005);
+            Body.setAngularVelocity(b, 0);
+        });
       }
     }
 
@@ -413,8 +448,17 @@
       e.preventDefault();
       const body = body_at_point(to_svg_coords(e));
       if (body && !body.isStatic) {
-        World.remove(engine.world, body);
-        svgShapes = svgShapes.filter(x => x !== body);
+        const bodiesToDelete = selectedBodies.includes(body) ? selectedBodies : [body];
+        
+        bodiesToDelete.forEach(b => {
+            World.remove(engine.world, b);
+            svgShapes = svgShapes.filter(x => x !== b);
+        });
+
+        if (selectedBodies.includes(body)) {
+            selectedBodies = [];
+        }
+        
         render_svg_shapes();
       }
     }
@@ -557,10 +601,11 @@
         body.originalVertices = bodyVertices;
         body.originalElement = data.originalElement;
         body.centerOffset = centerOffset;
-        body.originalSvgRoot = data.svgRoot;
+        body.originalSvgRoot = data.svgRoot || data.originalSvgRoot;
         svgShapes.push(body);
         World.add(engine.world, body);
       }
+      return body;
     }
 
     async function convert_pdf_to_svg_docs(file) {
@@ -631,7 +676,8 @@
     function clear_all() {
       World.remove(engine.world, svgShapes);
       svgShapes = [];
-      selectedBody = null;
+      selectedBodies = [];
+      activeDragBody = null;
       isDragging = false;
       render_svg_shapes();
     }
@@ -777,6 +823,14 @@
         const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
         group.setAttribute('id', `shape-${i}`);
         group.classList.add('svg-shape');
+        
+        if (selectedBodies.includes(body)) {
+            group.classList.add('selected');
+        }
+        if (isDragging && selectedBodies.includes(body)) {
+            group.classList.add('dragging');
+        }
+
         group.setAttribute('transform', `translate(${body.position.x},${body.position.y}) rotate(${body.angle * 180 / Math.PI})`);
         
         const clone = body.originalElement.cloneNode(true);
@@ -823,6 +877,55 @@
       border.setAttribute('stroke', 'red');
       border.setAttribute('stroke-width', WALL_THICK);
       svgCanvas.appendChild(border);
+    }
+
+    function copy_selected() {
+      if (selectedBodies.length === 0) return;
+
+      clipboard = [];
+      const selectionCenter = Vertices.centre(selectedBodies.flatMap(b => b.vertices));
+
+      selectedBodies.forEach(body => {
+        const data = {
+          vertices: body.originalVertices,
+          originalElement: body.originalElement,
+          centerOffset: body.centerOffset,
+          originalSvgRoot: body.originalSvgRoot,
+          relativePos: {
+            x: body.position.x - selectionCenter.x,
+            y: body.position.y - selectionCenter.y
+          },
+          angle: body.angle
+        };
+        clipboard.push(data);
+      });
+    }
+
+    function paste_copied() {
+        if (clipboard.length === 0) return;
+
+        const newBodies = [];
+        const pasteX = canvasWidth / 2 + (Math.random() - 0.5) * 50;
+        const pasteY = canvasHeight / 2 + (Math.random() - 0.5) * 50;
+
+        clipboard.forEach(data => {
+            const newBody = create_body({
+                vertices: data.vertices,
+                originalElement: data.originalElement.cloneNode(true),
+                centerOffset: data.centerOffset,
+                originalSvgRoot: data.originalSvgRoot
+            }, pasteX + data.relativePos.x, pasteY + data.relativePos.y);
+
+            if (newBody) {
+                Body.setAngle(newBody, data.angle);
+                newBodies.push(newBody);
+            }
+        });
+
+        if (newBodies.length > 0) {
+            selectedBodies = newBodies;
+            render_svg_shapes();
+        }
     }
 
     function export_svg() {
@@ -924,6 +1027,18 @@
             case 'ArrowRight':
                 widthInput.value = (+widthInput.value + 0.1).toFixed(1);
                 valueChanged = true;
+                break;
+            case 'c':
+                if (e.ctrlKey || e.metaKey) {
+                    e.preventDefault();
+                    copy_selected();
+                }
+                break;
+            case 'v':
+                if (e.ctrlKey || e.metaKey) {
+                    e.preventDefault();
+                    paste_copied();
+                }
                 break;
             case ' ':
                 e.preventDefault();
