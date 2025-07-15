@@ -112,9 +112,9 @@
     .canvas-layout {
       position: relative;
       display: flex;
-      flex-direction: column;
+      flex-direction: row;
       align-items: center;
-      gap: 10px;
+      gap: 20px;
     }
     
     #svgCanvas {
@@ -164,8 +164,7 @@
     <input type="file" id="svg-upload" accept=".svg,image/svg+xml" multiple style="display:none" onchange="load_svgs(event)">
     
     <button class="clear" onclick="clear_all()">🗑️ Hepsini Temizle</button>
-    <button class="export" onclick="export_svg()">💾 Kaydet</button>
-    <button class="engine" onclick="toggle_engine()">⚙️ Motor Görünümü</button>
+    <button class="export" onclick="export_pdf()">💾 PDF Kaydet</button>
     
     <label>Genişlik: <span id="wVal">29.7 cm</span></label>
     <input type="range" id="width" min="10" max="50" value="29.7" step="0.1" oninput="update_canvas()">
@@ -181,13 +180,22 @@
     
     <div style="margin-top:12px">
       <label><input type="checkbox" id="showPerim" onchange="toggle_overlays()"> Perimeter </label>
+      <label><input type="checkbox" id="showEngine" onchange="toggle_engine()"> Engine View</label>
+    </div>
+
+    <div id="instructions" style="margin-top: 20px; padding: 10px; border: 1px solid #ddd; border-radius: 8px; background: #f9f9f9;">
+        <h4 style="margin-bottom: 8px; color: #333;">Kısayollar</h4>
+        <p style="font-size: 12px; color: #555; margin-bottom: 5px;"><strong>Ok Tuşları:</strong> Genişlik/yükseklik ayarı</p>
+        <p style="font-size: 12px; color: #555;"><strong>Boşluk Tuşu:</strong> Çekim kuvvetini aç/kapat</p>
     </div>
   </div>
 
   <div id="canvas-container">
     <div class="canvas-layout">
-      <div id="dimension-display" style="text-align: center; color: red; font-size: 24px; font-weight: bold;"></div>
-      <svg id="svgCanvas" xmlns="http://www.w3.org/2000/svg"></svg>
+      <div style="display: flex; flex-direction: column; align-items: center; gap: 10px;">
+        <div id="dimension-display" style="text-align: center; color: red; font-size: 24px; font-weight: bold;"></div>
+        <svg id="svgCanvas" xmlns="http://www.w3.org/2000/svg"></svg>
+      </div>
       <canvas id="engineCanvas" class="hidden"></canvas>
     </div>
   </div>
@@ -196,6 +204,8 @@
   <script src="https://cdn.jsdelivr.net/npm/poly-decomp@0.3.0/build/decomp.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/clipper-lib@6.4.2/clipper.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/svg2pdf.js@2.2.2/dist/svg2pdf.umd.min.js"></script>
 
   <script>
     const { Engine, Runner, World, Bodies, Body, Events, Vertices, Query, Render, Bounds } = Matter;
@@ -310,7 +320,7 @@
     }
 
     function toggle_engine() {
-      showEngine = !showEngine;
+      showEngine = document.getElementById('showEngine').checked;
       if (showEngine) {
         engineCanvas.classList.remove('hidden');
         Render.run(render);
@@ -744,13 +754,24 @@
       svgCanvas.appendChild(border);
     }
 
-    function export_svg() {
-      const output = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    async function export_pdf() {
+      const { jsPDF } = window.jspdf;
+      
       const textHeight = 30;
-      output.setAttribute('viewBox', `0 ${-textHeight} ${canvasWidth} ${canvasHeight + textHeight}`);
+      const pdfWidth = canvasWidth;
+      const pdfHeight = canvasHeight + textHeight;
+
+      const doc = new jsPDF({
+        orientation: pdfWidth > canvasHeight ? 'landscape' : 'portrait',
+        unit: 'pt',
+        format: [pdfWidth, pdfHeight]
+      });
+
+      const output = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      output.setAttribute('viewBox', `0 0 ${canvasWidth} ${canvasHeight}`);
       output.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
       output.setAttribute('width', canvasWidth);
-      output.setAttribute('height', canvasHeight + textHeight);
+      output.setAttribute('height', canvasHeight);
 
       const namespaces = {};
       svgShapes.forEach(body => {
@@ -775,19 +796,17 @@
       border.setAttribute('fill', 'none');
       border.setAttribute('stroke', 'red');
       border.setAttribute('stroke-width', WALL_THICK);
-
-      const dimText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-      dimText.setAttribute('x', canvasWidth / 2);
-      dimText.setAttribute('y', -textHeight / 2);
-      dimText.setAttribute('dominant-baseline', 'middle');
-      dimText.setAttribute('text-anchor', 'middle');
-      dimText.setAttribute('font-size', '20');
-      dimText.setAttribute('fill', 'red');
-      dimText.setAttribute('font-weight', 'bold');
-      dimText.textContent = `${canvasWidthCm.toFixed(0)}x${canvasHeightCm.toFixed(1)}cm`;
-      output.appendChild(dimText);
-
       output.appendChild(border);
+      
+      doc.setFontSize(20);
+      doc.setFont(undefined, 'bold');
+      doc.setTextColor(255, 0, 0);
+      doc.text(
+        `${canvasWidthCm.toFixed(1)}x${canvasHeightCm.toFixed(1)}cm`,
+        pdfWidth / 2,
+        textHeight / 2,
+        { align: 'center', baseline: 'middle' }
+      );
 
       svgShapes.forEach(body => {
         const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
@@ -804,17 +823,15 @@
         group.appendChild(clone);
         output.appendChild(group);
       });
-
-      const blob = new Blob([
-        '<?xml version="1.0" encoding="UTF-8"?>\n' + output.outerHTML
-      ], { type: 'image/svg+xml' });
       
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `nester-${Date.now()}.svg`;
-      link.click();
-      URL.revokeObjectURL(url);
+      doc.svg(output, {
+        x: 0,
+        y: textHeight,
+        width: canvasWidth,
+        height: canvasHeight,
+      }).then(() => {
+        doc.save(`nester-${Date.now()}.pdf`);
+      });
     }
 
     function handle_key_down(e) {
