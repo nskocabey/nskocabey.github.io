@@ -591,9 +591,9 @@
       };
       
       const body = Bodies.fromVertices(x, y, [extendedVertices], {
-        frictionAir: 0.08,
+        frictionAir: 0.01,
         restitution: 0.8,
-        friction: 0.1,
+        friction: 0.01,
         density: 0.001
       }, true);
       
@@ -765,12 +765,11 @@
           const dy = bodyB.position.y - bodyA.position.y;
           const distanceSquared = dx * dx + dy * dy;
           
-          if (distanceSquared > 2500 && distanceSquared < 160000) {
+          if (distanceSquared > 0.1 && distanceSquared < 1e6) {
             const distance = Math.sqrt(distanceSquared);
             const force = (attractionForce * bodyA.mass * bodyB.mass) / distanceSquared;
             const forceX = dx / distance * force;
             const forceY = dy / distance * force;
-            
             Body.applyForce(bodyA, bodyA.position, { x: forceX, y: forceY });
             Body.applyForce(bodyB, bodyB.position, { x: -forceX, y: -forceY });
           }
