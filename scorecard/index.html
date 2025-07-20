@@ -86,23 +86,26 @@
     <script>
         const formatHours = s => (s / 3600).toFixed(1);
 
-        const toEasternTime = utcDate => {
-            return new Date(utcDate.getTime() - 4 * 3600000);
+        const toEasternTime = localDate => {
+            const easternOffset = 240; // EDT is 240 minutes west of UTC
+            const localOffset = localDate.getTimezoneOffset();
+            const offsetDiff = easternOffset - localOffset;
+            return new Date(localDate.getTime() + offsetDiff * 60000);
         };
 
         const getWeekStart = date => {
-            const eastern = toEasternTime(date);
-            const dayOfWeek = eastern.getDay();
+            const easternTime = toEasternTime(date);
+            const dayOfWeek = easternTime.getDay();
             
-            const sunday = new Date(eastern);
-            sunday.setDate(eastern.getDate() - dayOfWeek);
+            const sunday = new Date(easternTime);
+            sunday.setDate(easternTime.getDate() - dayOfWeek);
             sunday.setHours(12, 0, 0, 0);
             
-            if (dayOfWeek === 0 && eastern.getHours() < 12) {
+            if (dayOfWeek === 0 && easternTime.getHours() < 12) {
                 sunday.setDate(sunday.getDate() - 7);
             }
             
-            return new Date(sunday.getTime() + 4 * 3600000);
+            return sunday;
         };
 
         const generateWeeks = (start, end) => {
