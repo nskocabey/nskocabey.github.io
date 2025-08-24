@@ -226,7 +226,7 @@
                 authorEl.classList.remove('fade-out');
                 authorEl.classList.add('fade-in');
                 
-                progressBar.style.transition = 'width 8s linear';
+                progressBar.style.transition = 'width 30s linear';
                 progressBar.style.width = '100%';
             }, 600); // This must match the CSS transition duration
         }
@@ -234,7 +234,7 @@
         // Use a self-invoking loop with setTimeout for stability
         (function quoteLoop() {
             displayNextQuote();
-            setTimeout(quoteLoop, 8000); // 8 seconds total cycle time
+            setTimeout(quoteLoop, 30000); // 8 seconds total cycle time
         })();
 
     </script>
