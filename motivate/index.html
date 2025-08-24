@@ -2,16 +2,21 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <title>[focus]</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>[focus]</title>
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+        }
+
+        html, body {
+            height: 100%;
+            width: 100%;
+            overflow: hidden; /* Prevents bouncing on mobile */
         }
 
         body {
@@ -20,22 +25,22 @@
             background-color: #000;
             color: #fff;
             line-height: 1.6;
-            min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 20px;
+            padding: 2vw; /* Use viewport units for padding */
         }
 
         .container {
-            max-width: 600px;
+            max-width: 1500px; /* Increased max-width for larger screens */
+            width: 100%;
             text-align: center;
         }
 
         .quote-container {
-            padding: 60px 40px;
-            border: 1px solid #fff;
-            min-height: 300px;
+            padding: clamp(40px, 8vh, 100px) clamp(30px, 6vw, 80px); /* Responsive padding */
+            border: 2px solid #fff;
+            min-height: 400px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -45,9 +50,10 @@
         }
 
         .quote {
-            font-size: 24px;
+            /* Responsive font size for large displays */
+            font-size: clamp(28px, 5vw, 54px);
             font-weight: 700;
-            margin-bottom: 30px;
+            margin-bottom: 40px;
             line-height: 1.4;
             opacity: 0;
             transform: translateY(20px);
@@ -55,7 +61,7 @@
         }
 
         .author {
-            font-size: 14px;
+            font-size: clamp(16px, 2.5vw, 22px);
             opacity: 0.6;
             font-weight: 700;
             opacity: 0;
@@ -66,7 +72,7 @@
             position: absolute;
             bottom: 0;
             left: 0;
-            height: 2px;
+            height: 3px;
             background: #fff;
             width: 0%;
             animation: progress 8s linear forwards;
@@ -91,18 +97,6 @@
             }
         }
 
-        @keyframes fadeOut {
-            to {
-                opacity: 0;
-                transform: translateY(-20px);
-            }
-        }
-
-        .fade-out {
-            animation: fadeOut 0.5s ease forwards !important;
-        }
-
-
     </style>
 </head>
 <body>
@@ -117,74 +111,74 @@
     <script>
         const quotesByPrinciple = {
             "IFCS": [
-                "You say you worked for 8 hours. But how long did you actually PLAY with the problem? The fun part? That's the only part that counts.",
-                "Stop trying to 'work'. Pick a problem you enjoy and fiddle with it. The real work happens when you're so curious you forget you're 'working'.",
-                "You have to keep a dozen of your favorite problems constantly present in your mind. When you get a new insight, you test it against each of them.",
-                "Reading the name of a concept isn't knowing it. You think you're working, but you're just learning jargon. Explain it to a child, or you don't know it.",
-                "There is no 'magic'. Just the simple pleasure of figuring a thing out. Are you having that pleasure? If not, you're doing it wrong."
+                "The real work isn't a grind. It's the deep, focused play you get lost in for hours. If it doesn't feel like you're exploring, you're just pretending to work.",
+                "You don't need more hours in the day. You need more uninterrupted hours of joyous, obsessive tinkering. That's the only work that matters.",
+                "Your mind is a playground, but you're letting every notification be a broken piece of glass. Lock the gates. For hours. Let yourself play.",
+                "Stop scheduling 'work'. Schedule 'play' with your favorite problems. The deep focus will come naturally when you're genuinely having fun finding things out.",
+                "The secret is to be so absorbed in the puzzle, so in love with the game, that the 'work' disappears and only the play remains."
             ],
             "10X": [
-                "You're trying to improve the thing by 10%. Silly. Go back to the beginning. What's the most fundamental principle? I bet you've forgotten it.",
-                "Why are you climbing the ladder? Take it down. Check if it's leaning against the right wall. The '10x' is usually on a different wall entirely.",
-                "Throw it all out. All of it. If you had to solve this with only what you know for sure, from scratch, what would you do? The answer will scare you.",
-                "You're polishing a cannonball. A very shiny, well-made cannonball. But the world has moved on to rockets. Stop polishing.",
-                "What do you know? And how do you know you know it? Ask that about your whole approach. The house of cards you've built might just fall down."
+                "You're trying to play the same game better. The real fun is inventing a new game. Throw out the rules you think you know and start from scratch.",
+                "Don't just solve the puzzle. Take the puzzle apart. Ask why it's built this way. The most playful question is 'what if this wasn't true at all?'",
+                "A 10x idea feels like a joke at first. It's absurd. That's how you know it's interesting. You have to be willing to play with ridiculous ideas.",
+                "To get a truly different result, you must be willing to look foolish. Play with the concepts that everyone else takes seriously.",
+                "The work isn't in finding the answer. The work is hours of joyful play in the sandbox of first principles until an answer reveals itself."
             ],
             "EnEx": [
-                "If you can't explain it simply, you don't understand it well enough. Your messy work is just a public declaration of your own confusion.",
-                "Nature can't be fooled. Your complicated mess might impress your boss, but it's fragile. Simple, robust, and true—that's the game.",
-                "There's a pleasure in finding a beautiful, elegant way to do it. It's not about being neat; it's about being right in a way that feels good.",
-                "Don't just solve the problem. Find its soul. Everything else is just bookkeeping.",
-                "Your sloppy thinking today becomes a crisis for you, and only you, tomorrow. Be honest with the work. It's the only person you have to convince."
+                "There is a profound pleasure in making something elegant. It's a game between you and the material. Don't cheat. The beauty is in the honest solution.",
+                "Sloppy work is no fun. It's a boring game you'll lose later. The real play is in the craft—the hours spent making it simple, strong, and true.",
+                "Treat your work like a beautiful machine. You wouldn't put junk parts in it. The deep work is the patient craftsmanship that makes it hum.",
+                "Don't just build a solution. Build the most beautiful solution you can imagine. The play is in the elegance. The focus is the price of admission.",
+                "Get it right. Not for a boss, not for a grade, but for the pure, simple joy of seeing a problem solved beautifully. That's the game."
             ],
             "HiAg": [
-                "What do YOU care what other people think? Figure it out for your own pleasure. The awards and titles are just silly games.",
-                "Stop waiting for someone to give you the problem. Go find something that doesn't make sense. That's your job now.",
-                "Nobody knows anything. Some people are just better at pretending. Have the courage to admit you're lost and then the fun of exploring begins.",
-                "The prize is the pleasure of finding the thing out. Don't let some committee or boss take that away from you.",
-                "Don't like the rules? Find better ones. The world is a very strange and wonderful place. It doesn't run on a syllabus."
+                "You can't play if you're waiting for permission. The playground is open to anyone who has the guts to walk on and start their own game.",
+                "The most powerful people are just the most curious players. They didn't wait to be told what to explore. They just started exploring.",
+                "See the world as a box of toys. Some people wait to be told how to use them. Others just pick them up and start building things.",
+                "Agency is the freedom to play with the world's machinery. You earn that freedom with hours of focused effort, understanding how it all works.",
+                "Don't ask 'what's my job?' Ask 'what's the most interesting game I can play here?' and then put in the hours to win it."
             ],
             "BiAc": [
-                "Stop all the talk! Calculate it. Do the experiment. See what happens. You're trying to win an argument in a committee, but nature is the only judge.",
-                "Thinking is not the work. The work is the work. Scribble on a napkin. Try it out. You can't ponder your way to a discovery.",
-                "You're afraid of being wrong. Good! Being wrong is how you find out what's right. The only sin is staying wrong because you were too scared to try.",
-                "Ready, Fire, Aim. At least you've fired! Now you know where the target isn't. That's more than the fellow who is still aiming.",
-                "Diddle around. Seriously. Wiggle it. Poke it. See what breaks. You'll learn more in ten minutes of fooling around than in ten hours of 'planning'."
+                "Stop talking about how the game is played. Make a move. The board will teach you more than any rulebook ever could.",
+                "Theorizing is like watching a game. Doing is playing it. You've spent years in the stands. It's time to put in your hours on the field.",
+                "Play with it! Poke it. See what happens. You'll learn more from five hours of foolish experimentation than from five weeks of careful planning.",
+                "You can't learn to swim from a book. The deep work is in the water. Get in the water.",
+                "Your fear of being wrong is the enemy of play. A good game requires bad moves. Make them, learn from them, and make better ones."
             ],
             "TW": [
-                "The first principle is that you must not fool yourself—and you are the easiest person to fool. All other forms of trust begin there.",
-                "Can you trust your own work? When you re-derive it, do you get the same answer? If not, everything else is just theatre.",
-                "Be honest about your ignorance. It's the beginning of all knowledge. Pretending to know is a dead end.",
-                "Nature tells you the truth. Your job is to be a trustworthy listener.",
-                "A reputation for brilliance is nothing. A reputation for being the guy who gets to the bottom of it? That's everything."
+                "The first rule of the game is: Don't fool yourself. It's the most fun game to play, but you're the easiest opponent to beat.",
+                "Honest work is a beautiful game. You pit your understanding against the universe. Dishonest work is just lying to yourself, and that's no fun at all.",
+                "You can't play poker with yourself if you peek at your own cards. The deep work is an honest game. Are you playing it straight?",
+                "Trust in your own process is the ultimate reward. It's the feeling you get after hours of honest play, knowing you didn't cheat to find the answer.",
+                "Your word to yourself is the rulebook. If you ignore it, you're not playing anymore. You're just making noise."
             ],
             "Res": [
-                "So, the experiment failed. The theory was wrong. Fantastic! You've learned something. The only tragedy is not learning.",
-                "You are responsible for your own education. Nobody is going to teach you. They're just going to create conditions for you to learn. Or not.",
-                "If you don't understand, it's your fault. Not the teacher's, not the book's. Your fault. Now, what are you going to do about it?",
-                "You chose the problem. You chose the method. You got the result. It's all you. Wonderful! Because it means you can change it.",
-                "Don't tell me why you failed. Tell me what you learned. The rest is just a boring story."
+                "You lost the game. So what? Was it a good game? Did you play hard? Did you learn something? That's the only thing that matters.",
+                "Own every move you make on the board. The bad ones are more important than the good ones. That's where the real learning is.",
+                "Don't blame the pieces. Don't blame the board. A master loves the game too much for that. They just get better.",
+                "Your current position is the result of all your previous moves. Don't like it? Fine. The deep work starts now. Make a better move.",
+                "Responsibility is the joy of knowing you are the player, not a piece being moved."
             ],
             "ExOw": [
-                "When you find out you've been wrong about something, you have to celebrate it. You've just shed a little bit of your own stupidity.",
-                "Own your ignorance. It's the most powerful tool you have. It forces you to ask questions, and questions are the engine of understanding.",
-                "If the result is wrong, it's not the universe's fault. It's yours. Your model, your calculation, your understanding—something is wrong. Go find it.",
-                "The person who says they know the answer is the most dangerous. The person who says 'I'm not sure, let's find out'... that's the one to follow.",
-                "It's okay to say 'I don't know.' It's the prelude to '...but I'm gonna find out.'"
+                "The board, the pieces, the rules, the clock, your opponent's strategy—it's all your game to master. All of it. The play is in seeing the whole system.",
+                "If your tools are bad, that's your fault. It's part of the game to build better tools. The deep work is forging your own instruments.",
+                "Stop saying 'it didn't work.' Start asking 'why didn't my game plan account for that?' That's the question that leads to mastery.",
+                "Own your ignorance as your favorite toy. It's the starting point for every great adventure.",
+                "A master doesn't blame a surprising move from the universe; they are delighted by the chance to play a more interesting game."
             ],
             "FarMe": [
-                "You can't cram for understanding. It's like a tree. You plant a seed, you water it. You can't yell at it to grow faster.",
-                "Learn how to learn. Figure out what you're interested in and get ridiculously good at it. The skills are transferable.",
-                "The real prize isn't solving this one problem. It's that in solving it, you've added a new tool to your belt for solving all future problems.",
-                "What you learn today might seem useless. But one day, you'll be working on something else and you'll say, 'Wait a minute, I know about this...'",
-                "Fall in love with the process of not knowing. The struggle, the confusion, the dead ends... that's where the real magic is."
+                "This isn't one game. It's a series of games that make you better at playing. Fall in love with the practice, not the prize.",
+                "The deep work you do today is planting a seed for a game you'll play five years from now. It's the best investment you can make.",
+                "Stop chasing the thrill of a quick win. The real joy is in building the skills, piece by piece, to play the long, beautiful game of mastery.",
+                "What puzzle can you work on for an hour today that will make all your future games easier to play? Go do that.",
+                "True mastery is a long, slow, playful cultivation. You put in the hours not because you have to, but because you love the soil."
             ],
             "CreateIterate": [
-                "It's not a failure, it's data. You tried something and it didn't work. Great! You've successfully eliminated one possibility.",
-                "Create a theory. A rickety, ugly, half-baked theory. It doesn't matter. Now, the fun begins: trying to knock it down.",
-                "The game is not to be right. The game is to get closer to right. That means you have to be willing to be wrong, over and over again.",
-                "Show me your messy notebook, the pages with coffee stains and crossed-out equations. That's where the real thinking happens. The final paper is just a summary.",
-                "Revise, revise, revise. Not to make it prettier, but to make it truer. Peel away the parts that aren't honest."
+                "Make a move. See what happens. It's the fundamental loop of all play and all progress. The rest is commentary.",
+                "Your first version is supposed to be a playful mess. The serious work is in the iteration, in lovingly refining your clumsy first attempt.",
+                "Don't try to build a cathedral. Make a pile of mud bricks. Play with them. Arrange them. Soon you'll have a wall. That's how cathedrals are built.",
+                "The game isn't 'get it right.' The game is 'make it, test it, make it better.' This requires thousands of hours of happy, focused tinkering.",
+                "Fall in love with the process of revision. It's the game of finding the better version of your own ideas."
             ]
         };
 
@@ -200,45 +194,65 @@
             };
         }
 
-        let autoMode = true;
-        let autoTimer;
-
         function displayQuote() {
-            const quote = getRandomQuote();
             const quoteEl = document.getElementById('quote');
             const authorEl = document.getElementById('author');
             const progressBar = document.getElementById('progressBar');
+            const quoteContainer = document.getElementById('quoteContainer');
             
-            // Reset animations
-            quoteEl.style.animation = 'none';
-            authorEl.style.animation = 'none';
-            progressBar.style.animation = 'none';
-            
-            // Trigger reflow
-            quoteEl.offsetHeight;
-            authorEl.offsetHeight;
-            progressBar.offsetHeight;
-            
-            // Set new content and restart animations
-            quoteEl.textContent = quote.text;
-            authorEl.textContent = quote.author;
-            
-            quoteEl.style.animation = 'fadeInUp 1s ease forwards';
-            authorEl.style.animation = 'fadeIn 1s ease 0.5s forwards';
-            progressBar.style.animation = autoMode ? 'progress 8s linear forwards' : 'none';
-        }
+            const showNewQuote = () => {
+                const quote = getRandomQuote();
+                
+                // Reset animations
+                quoteEl.style.animation = 'none';
+                authorEl.style.animation = 'none';
+                progressBar.style.animation = 'none';
+                
+                // Trigger reflow to restart animations
+                quoteEl.offsetHeight; 
+                
+                // Set new content and restart animations
+                quoteEl.textContent = quote.text;
+                authorEl.textContent = quote.author;
+                
+                quoteEl.style.animation = 'fadeInUp 1s ease forwards';
+                authorEl.style.animation = 'fadeIn 1s ease 0.5s forwards';
+                progressBar.style.animation = 'progress 8s linear forwards';
+            };
 
-        function newQuote() {
-            displayQuote();
-            
-            if (autoMode) {
-                clearTimeout(autoTimer);
-                autoTimer = setTimeout(newQuote, 8000);
+            // Initial call doesn't need a fade out
+            if (!quoteEl.textContent) {
+                 showNewQuote();
+            } else {
+                // Add a class to fade out current quote
+                quoteEl.style.animation = 'fadeOut 0.5s ease forwards';
+                authorEl.style.animation = 'fadeOut 0.5s ease forwards';
+                
+                // After fade out, show new quote
+                setTimeout(showNewQuote, 500);
             }
         }
 
-        // Initialize
-        newQuote();
+        function newQuoteCycle() {
+            displayQuote();
+            setTimeout(newQuoteCycle, 8000);
+        }
+
+        // Slight modification to the animation CSS for fadeOut
+        const styleSheet = document.createElement("style");
+        styleSheet.type = "text/css";
+        styleSheet.innerText = `
+            @keyframes fadeOut {
+                to {
+                    opacity: 0;
+                    transform: translateY(-20px);
+                }
+            }
+        `;
+        document.head.appendChild(styleSheet);
+        
+        // Initialize the cycle
+        newQuoteCycle();
     </script>
 </body>
 </html>
