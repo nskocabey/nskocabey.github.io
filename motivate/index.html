@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>[focus]</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Consolas', monospace;
+            font-weight: 700;
+            background-color: #000;
+            color: #fff;
+            line-height: 1.6;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 600px;
+            text-align: center;
+        }
+
+        .quote-container {
+            padding: 60px 40px;
+            border: 1px solid #fff;
+            min-height: 300px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .quote {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 30px;
+            line-height: 1.4;
+            opacity: 0;
+            transform: translateY(20px);
+            animation: fadeInUp 1s ease forwards;
+        }
+
+        .author {
+            font-size: 14px;
+            opacity: 0.6;
+            font-weight: 700;
+            opacity: 0;
+            animation: fadeIn 1s ease 0.5s forwards;
+        }
+
+        .progress-bar {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            height: 2px;
+            background: #fff;
+            width: 0%;
+            animation: progress 8s linear forwards;
+        }
+
+        @keyframes fadeInUp {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeIn {
+            to {
+                opacity: 0.6;
+            }
+        }
+
+        @keyframes progress {
+            to {
+                width: 100%;
+            }
+        }
+
+        @keyframes fadeOut {
+            to {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+        }
+
+        .fade-out {
+            animation: fadeOut 0.5s ease forwards !important;
+        }
+
+
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="quote-container" id="quoteContainer">
+            <div class="quote" id="quote"></div>
+            <div class="author" id="author"></div>
+            <div class="progress-bar" id="progressBar"></div>
+        </div>
+    </div>
+
+    <script>
+        const quotesByPrinciple = {
+            "IFCS": [
+                "You say you worked for 8 hours. But how long did you actually PLAY with the problem? The fun part? That's the only part that counts.",
+                "Stop trying to 'work'. Pick a problem you enjoy and fiddle with it. The real work happens when you're so curious you forget you're 'working'.",
+                "You have to keep a dozen of your favorite problems constantly present in your mind. When you get a new insight, you test it against each of them.",
+                "Reading the name of a concept isn't knowing it. You think you're working, but you're just learning jargon. Explain it to a child, or you don't know it.",
+                "There is no 'magic'. Just the simple pleasure of figuring a thing out. Are you having that pleasure? If not, you're doing it wrong."
+            ],
+            "10X": [
+                "You're trying to improve the thing by 10%. Silly. Go back to the beginning. What's the most fundamental principle? I bet you've forgotten it.",
+                "Why are you climbing the ladder? Take it down. Check if it's leaning against the right wall. The '10x' is usually on a different wall entirely.",
+                "Throw it all out. All of it. If you had to solve this with only what you know for sure, from scratch, what would you do? The answer will scare you.",
+                "You're polishing a cannonball. A very shiny, well-made cannonball. But the world has moved on to rockets. Stop polishing.",
+                "What do you know? And how do you know you know it? Ask that about your whole approach. The house of cards you've built might just fall down."
+            ],
+            "EnEx": [
+                "If you can't explain it simply, you don't understand it well enough. Your messy work is just a public declaration of your own confusion.",
+                "Nature can't be fooled. Your complicated mess might impress your boss, but it's fragile. Simple, robust, and true—that's the game.",
+                "There's a pleasure in finding a beautiful, elegant way to do it. It's not about being neat; it's about being right in a way that feels good.",
+                "Don't just solve the problem. Find its soul. Everything else is just bookkeeping.",
+                "Your sloppy thinking today becomes a crisis for you, and only you, tomorrow. Be honest with the work. It's the only person you have to convince."
+            ],
+            "HiAg": [
+                "What do YOU care what other people think? Figure it out for your own pleasure. The awards and titles are just silly games.",
+                "Stop waiting for someone to give you the problem. Go find something that doesn't make sense. That's your job now.",
+                "Nobody knows anything. Some people are just better at pretending. Have the courage to admit you're lost and then the fun of exploring begins.",
+                "The prize is the pleasure of finding the thing out. Don't let some committee or boss take that away from you.",
+                "Don't like the rules? Find better ones. The world is a very strange and wonderful place. It doesn't run on a syllabus."
+            ],
+            "BiAc": [
+                "Stop all the talk! Calculate it. Do the experiment. See what happens. You're trying to win an argument in a committee, but nature is the only judge.",
+                "Thinking is not the work. The work is the work. Scribble on a napkin. Try it out. You can't ponder your way to a discovery.",
+                "You're afraid of being wrong. Good! Being wrong is how you find out what's right. The only sin is staying wrong because you were too scared to try.",
+                "Ready, Fire, Aim. At least you've fired! Now you know where the target isn't. That's more than the fellow who is still aiming.",
+                "Diddle around. Seriously. Wiggle it. Poke it. See what breaks. You'll learn more in ten minutes of fooling around than in ten hours of 'planning'."
+            ],
+            "TW": [
+                "The first principle is that you must not fool yourself—and you are the easiest person to fool. All other forms of trust begin there.",
+                "Can you trust your own work? When you re-derive it, do you get the same answer? If not, everything else is just theatre.",
+                "Be honest about your ignorance. It's the beginning of all knowledge. Pretending to know is a dead end.",
+                "Nature tells you the truth. Your job is to be a trustworthy listener.",
+                "A reputation for brilliance is nothing. A reputation for being the guy who gets to the bottom of it? That's everything."
+            ],
+            "Res": [
+                "So, the experiment failed. The theory was wrong. Fantastic! You've learned something. The only tragedy is not learning.",
+                "You are responsible for your own education. Nobody is going to teach you. They're just going to create conditions for you to learn. Or not.",
+                "If you don't understand, it's your fault. Not the teacher's, not the book's. Your fault. Now, what are you going to do about it?",
+                "You chose the problem. You chose the method. You got the result. It's all you. Wonderful! Because it means you can change it.",
+                "Don't tell me why you failed. Tell me what you learned. The rest is just a boring story."
+            ],
+            "ExOw": [
+                "When you find out you've been wrong about something, you have to celebrate it. You've just shed a little bit of your own stupidity.",
+                "Own your ignorance. It's the most powerful tool you have. It forces you to ask questions, and questions are the engine of understanding.",
+                "If the result is wrong, it's not the universe's fault. It's yours. Your model, your calculation, your understanding—something is wrong. Go find it.",
+                "The person who says they know the answer is the most dangerous. The person who says 'I'm not sure, let's find out'... that's the one to follow.",
+                "It's okay to say 'I don't know.' It's the prelude to '...but I'm gonna find out.'"
+            ],
+            "FarMe": [
+                "You can't cram for understanding. It's like a tree. You plant a seed, you water it. You can't yell at it to grow faster.",
+                "Learn how to learn. Figure out what you're interested in and get ridiculously good at it. The skills are transferable.",
+                "The real prize isn't solving this one problem. It's that in solving it, you've added a new tool to your belt for solving all future problems.",
+                "What you learn today might seem useless. But one day, you'll be working on something else and you'll say, 'Wait a minute, I know about this...'",
+                "Fall in love with the process of not knowing. The struggle, the confusion, the dead ends... that's where the real magic is."
+            ],
+            "CreateIterate": [
+                "It's not a failure, it's data. You tried something and it didn't work. Great! You've successfully eliminated one possibility.",
+                "Create a theory. A rickety, ugly, half-baked theory. It doesn't matter. Now, the fun begins: trying to knock it down.",
+                "The game is not to be right. The game is to get closer to right. That means you have to be willing to be wrong, over and over again.",
+                "Show me your messy notebook, the pages with coffee stains and crossed-out equations. That's where the real thinking happens. The final paper is just a summary.",
+                "Revise, revise, revise. Not to make it prettier, but to make it truer. Peel away the parts that aren't honest."
+            ]
+        };
+
+        function getRandomQuote() {
+            const principles = Object.keys(quotesByPrinciple);
+            const randomPrinciple = principles[Math.floor(Math.random() * principles.length)];
+            const quotes = quotesByPrinciple[randomPrinciple];
+            const randomQuote = quotes[Math.floor(Math.random() * quotes.length)];
+            
+            return {
+                text: randomQuote,
+                author: `[${randomPrinciple}]`
+            };
+        }
+
+        let autoMode = true;
+        let autoTimer;
+
+        function displayQuote() {
+            const quote = getRandomQuote();
+            const quoteEl = document.getElementById('quote');
+            const authorEl = document.getElementById('author');
+            const progressBar = document.getElementById('progressBar');
+            
+            // Reset animations
+            quoteEl.style.animation = 'none';
+            authorEl.style.animation = 'none';
+            progressBar.style.animation = 'none';
+            
+            // Trigger reflow
+            quoteEl.offsetHeight;
+            authorEl.offsetHeight;
+            progressBar.offsetHeight;
+            
+            // Set new content and restart animations
+            quoteEl.textContent = quote.text;
+            authorEl.textContent = quote.author;
+            
+            quoteEl.style.animation = 'fadeInUp 1s ease forwards';
+            authorEl.style.animation = 'fadeIn 1s ease 0.5s forwards';
+            progressBar.style.animation = autoMode ? 'progress 8s linear forwards' : 'none';
+        }
+
+        function newQuote() {
+            displayQuote();
+            
+            if (autoMode) {
+                clearTimeout(autoTimer);
+                autoTimer = setTimeout(newQuote, 8000);
+            }
+        }
+
+        // Initialize
+        newQuote();
+    </script>
+</body>
+</html>
