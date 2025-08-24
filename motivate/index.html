@@ -7,40 +7,49 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+        :root {
+            --bg-color: #000;
+            --text-color: #f5f5f5;
+            --progress-bar-color: #f5f5f5;
         }
 
-        html, body {
-            height: 100%;
-            width: 100%;
-            overflow: hidden; /* Prevents bouncing on mobile */
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+            margin: 0;
+            padding: 0;
         }
 
         body {
-            font-family: 'Consolas', monospace;
-            font-weight: 700;
-            background-color: #000;
-            color: #fff;
-            line-height: 1.6;
+            padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            position: fixed;
+            inset: 0;
             display: flex;
+            flex-direction: column;
             align-items: center;
             justify-content: center;
-            padding: 2vw; /* Use viewport units for padding */
+            height: 100vh; /* Use 100vh for full viewport height */
+            overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            -webkit-font-smoothing: antialiased;
         }
 
         .container {
-            max-width: 1500px; /* Increased max-width for larger screens */
-            width: 100%;
+            width: 90vw; /* Use viewport width */
+            max-width: 900px;
             text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
         }
 
         .quote-container {
-            padding: clamp(40px, 8vh, 100px) clamp(30px, 6vw, 80px); /* Responsive padding */
-            border: 2px solid #fff;
-            min-height: 400px;
+            width: 100%;
+            padding: 5vh 5vw; /* Responsive padding */
+            min-height: 40vh; /* Minimum height relative to viewport */
             display: flex;
             align-items: center;
             justify-content: center;
@@ -50,60 +59,51 @@
         }
 
         .quote {
-            /* Responsive font size for large displays */
-            font-size: clamp(28px, 5vw, 54px);
-            font-weight: 700;
-            margin-bottom: 40px;
+            font-size: clamp(24px, 5vw, 48px); /* Responsive font size */
+            font-weight: 300;
+            margin-bottom: 5vh;
             line-height: 1.4;
             opacity: 0;
             transform: translateY(20px);
-            animation: fadeInUp 1s ease forwards;
+            transition: opacity 0.5s ease, transform 0.5s ease;
         }
 
         .author {
-            font-size: clamp(16px, 2.5vw, 22px);
-            opacity: 0.6;
-            font-weight: 700;
+            font-size: clamp(14px, 2.5vw, 18px);
+            font-weight: 500;
             opacity: 0;
-            animation: fadeIn 1s ease 0.5s forwards;
+            transition: opacity 0.5s ease;
+            color: #888;
         }
 
         .progress-bar {
             position: absolute;
             bottom: 0;
             left: 0;
-            height: 3px;
-            background: #fff;
+            height: 2px;
+            background: var(--progress-bar-color);
             width: 0%;
-            animation: progress 8s linear forwards;
+            transition: width 8s linear;
         }
 
-        @keyframes fadeInUp {
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+        /* Animation classes */
+        .fade-in {
+            opacity: 1;
+            transform: translateY(0);
         }
 
-        @keyframes fadeIn {
-            to {
-                opacity: 0.6;
-            }
-        }
-
-        @keyframes progress {
-            to {
-                width: 100%;
-            }
+        .fade-out {
+            opacity: 0;
+            transform: translateY(-20px);
         }
 
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="quote-container" id="quoteContainer">
-            <div class="quote" id="quote"></div>
-            <div class="author" id="author"></div>
+        <div class="quote-container">
+            <p class="quote" id="quote"></p>
+            <p class="author" id="author"></p>
             <div class="progress-bar" id="progressBar"></div>
         </div>
     </div>
@@ -182,6 +182,10 @@
             ]
         };
 
+        const quoteEl = document.getElementById('quote');
+        const authorEl = document.getElementById('author');
+        const progressBar = document.getElementById('progressBar');
+
         function getRandomQuote() {
             const principles = Object.keys(quotesByPrinciple);
             const randomPrinciple = principles[Math.floor(Math.random() * principles.length)];
@@ -195,64 +199,43 @@
         }
 
         function displayQuote() {
-            const quoteEl = document.getElementById('quote');
-            const authorEl = document.getElementById('author');
-            const progressBar = document.getElementById('progressBar');
-            const quoteContainer = document.getElementById('quoteContainer');
-            
-            const showNewQuote = () => {
-                const quote = getRandomQuote();
-                
-                // Reset animations
-                quoteEl.style.animation = 'none';
-                authorEl.style.animation = 'none';
-                progressBar.style.animation = 'none';
-                
-                // Trigger reflow to restart animations
-                quoteEl.offsetHeight; 
-                
-                // Set new content and restart animations
-                quoteEl.textContent = quote.text;
-                authorEl.textContent = quote.author;
-                
-                quoteEl.style.animation = 'fadeInUp 1s ease forwards';
-                authorEl.style.animation = 'fadeIn 1s ease 0.5s forwards';
-                progressBar.style.animation = 'progress 8s linear forwards';
-            };
+            const { text, author } = getRandomQuote();
 
-            // Initial call doesn't need a fade out
-            if (!quoteEl.textContent) {
-                 showNewQuote();
-            } else {
-                // Add a class to fade out current quote
-                quoteEl.style.animation = 'fadeOut 0.5s ease forwards';
-                authorEl.style.animation = 'fadeOut 0.5s ease forwards';
+            // Fade out the current quote
+            quoteEl.classList.add('fade-out');
+            authorEl.classList.add('fade-out');
+
+            setTimeout(() => {
+                // Update content
+                quoteEl.textContent = text;
+                authorEl.textContent = author;
+
+                // Reset progress bar
+                progressBar.style.transition = 'none';
+                progressBar.style.width = '0%';
                 
-                // After fade out, show new quote
-                setTimeout(showNewQuote, 500);
-            }
+                // Trigger reflow to apply the reset
+                progressBar.offsetHeight; 
+
+                // Start new animations
+                quoteEl.classList.remove('fade-out');
+                quoteEl.classList.add('fade-in');
+                authorEl.classList.remove('fade-out');
+                authorEl.classList.add('fade-in');
+                
+                progressBar.style.transition = 'width 8s linear';
+                progressBar.style.width = '100%';
+            }, 500); // Match this delay to your CSS transition duration
         }
 
         function newQuoteCycle() {
             displayQuote();
-            setTimeout(newQuoteCycle, 8000);
+            setInterval(displayQuote, 8000);
         }
 
-        // Slight modification to the animation CSS for fadeOut
-        const styleSheet = document.createElement("style");
-        styleSheet.type = "text/css";
-        styleSheet.innerText = `
-            @keyframes fadeOut {
-                to {
-                    opacity: 0;
-                    transform: translateY(-20px);
-                }
-            }
-        `;
-        document.head.appendChild(styleSheet);
-        
-        // Initialize the cycle
+        // Initialize
         newQuoteCycle();
+
     </script>
 </body>
 </html>
