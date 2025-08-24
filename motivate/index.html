@@ -3,13 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <title>[focus]</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    
     <style>
         :root {
             --bg-color: #000;
             --text-color: #f5f5f5;
+            --author-color: #888;
             --progress-bar-color: #f5f5f5;
         }
 
@@ -19,71 +22,72 @@
             margin: 0;
             padding: 0;
         }
+        
+        /* Ensure html and body fill the screen and disable scrolling */
+        html, body {
+            height: 100%;
+            width: 100%;
+            overflow: hidden;
+            position: relative;
+        }
 
         body {
+            /* Use safe-area-insets to avoid notches and the home bar on modern devices */
             padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
             background-color: var(--bg-color);
             color: var(--text-color);
-            position: fixed;
-            inset: 0;
             display: flex;
-            flex-direction: column;
             align-items: center;
             justify-content: center;
-            height: 100vh; /* Use 100vh for full viewport height */
-            overflow: hidden;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
             -webkit-font-smoothing: antialiased;
         }
 
         .container {
-            width: 90vw; /* Use viewport width */
-            max-width: 900px;
+            width: 85vw; /* Reduced from 90vw to "zoom out" slightly */
+            max-width: 850px;
             text-align: center;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
         }
 
         .quote-container {
             width: 100%;
-            padding: 5vh 5vw; /* Responsive padding */
-            min-height: 40vh; /* Minimum height relative to viewport */
             display: flex;
+            flex-direction: column;
             align-items: center;
             justify-content: center;
-            flex-direction: column;
             position: relative;
-            overflow: hidden;
         }
 
         .quote {
-            font-size: clamp(24px, 5vw, 48px); /* Responsive font size */
+            /* Adjusted max font size to feel less zoomed in on large screens */
+            font-size: clamp(24px, 4.5vw, 44px); 
             font-weight: 300;
-            margin-bottom: 5vh;
-            line-height: 1.4;
+            line-height: 1.45;
+            margin-bottom: 4vh;
+            min-height: 25vh; /* Ensures layout stability between quotes of different lengths */
+            display: flex;
+            align-items: center;
+            justify-content: center;
             opacity: 0;
             transform: translateY(20px);
-            transition: opacity 0.5s ease, transform 0.5s ease;
+            transition: opacity 0.6s ease, transform 0.6s ease;
         }
 
         .author {
-            font-size: clamp(14px, 2.5vw, 18px);
+            font-size: clamp(14px, 2vw, 18px);
             font-weight: 500;
+            color: var(--author-color);
             opacity: 0;
-            transition: opacity 0.5s ease;
-            color: #888;
+            transition: opacity 0.6s ease;
         }
 
         .progress-bar {
             position: absolute;
-            bottom: 0;
+            bottom: -5vh; /* Position progress bar below the quote text */
             left: 0;
             height: 2px;
             background: var(--progress-bar-color);
             width: 0%;
-            transition: width 8s linear;
         }
 
         /* Animation classes */
@@ -192,32 +196,31 @@
             const quotes = quotesByPrinciple[randomPrinciple];
             const randomQuote = quotes[Math.floor(Math.random() * quotes.length)];
             
-            return {
-                text: randomQuote,
-                author: `[${randomPrinciple}]`
-            };
+            return { text: randomQuote, author: `[${randomPrinciple}]` };
         }
 
-        function displayQuote() {
+        function displayNextQuote() {
             const { text, author } = getRandomQuote();
 
-            // Fade out the current quote
+            // Fade out the current quote and author
+            quoteEl.classList.remove('fade-in');
             quoteEl.classList.add('fade-out');
+            authorEl.classList.remove('fade-in');
             authorEl.classList.add('fade-out');
 
+            // After the fade-out transition (600ms), update content and fade in
             setTimeout(() => {
-                // Update content
                 quoteEl.textContent = text;
                 authorEl.textContent = author;
 
-                // Reset progress bar
+                // Reset progress bar animation
                 progressBar.style.transition = 'none';
                 progressBar.style.width = '0%';
                 
-                // Trigger reflow to apply the reset
-                progressBar.offsetHeight; 
+                // This is a trick to force the browser to apply the style change immediately
+                void progressBar.offsetWidth; 
 
-                // Start new animations
+                // Start the new fade-in and progress bar animations
                 quoteEl.classList.remove('fade-out');
                 quoteEl.classList.add('fade-in');
                 authorEl.classList.remove('fade-out');
@@ -225,16 +228,14 @@
                 
                 progressBar.style.transition = 'width 8s linear';
                 progressBar.style.width = '100%';
-            }, 500); // Match this delay to your CSS transition duration
+            }, 600); // This must match the CSS transition duration
         }
 
-        function newQuoteCycle() {
-            displayQuote();
-            setInterval(displayQuote, 8000);
-        }
-
-        // Initialize
-        newQuoteCycle();
+        // Use a self-invoking loop with setTimeout for stability
+        (function quoteLoop() {
+            displayNextQuote();
+            setTimeout(quoteLoop, 8000); // 8 seconds total cycle time
+        })();
 
     </script>
 </body>
