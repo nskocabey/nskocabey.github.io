@@ -109,6 +109,7 @@
         </div>
         <div class="controls">
             <div class="button-group">
+                <button id="camera-btn">camera</button>
                 <button id="start-btn">start</button>
                 <button id="stop-btn" disabled>stop</button>
             </div>
@@ -121,6 +122,7 @@
         const DROPBOX_ACCESS_TOKEN = 'sl.u.AGD5eZmtOePavyQ6Afi2TlJAJLLSCcQgWW3WbJ8zcwXBO7De46KAf-wrbrOBqRnB05gEU9EryWFdH8nqZUhLp_FSH892pRNBEIwV7FpDOyoyCApJ97fPjn3QRwKy0nvzf8cXBN1Fb2O5Wdz3q0UeumL17zji4vFy1eOSmPSoxO1JG711hiJP-tZaL1SAcH3lh5EEbAych6OQXzEHL8OFE__Gu2UGwFES4u77JsJPuCmBvx02C6Losbi9VIWgAev4pqGnNJqHlGBS1vemXqPrzqmdyxw7uGiaCLzqdEhLRoGJmVjuOWgMUCFcDJiL7tNUVuTcCJY-Ox2IXwVF7ArRZcfZEXeynGDMHDsafXbp9YwzwvRFwzfIe-p-PAKXFgay-ksQLtBXZA9Pbh_eIe1bmMTMroGpEMcU7jenTLKRhjq2XsCbCC4waQ2og79fcxthTk-YsIKf0kpeKUWsnpLi6QFrRR9CfVmvsK86LFcEFhYh3scIrSV0JefNyHhH5o2_209ntUqiUBT5KxgzqVgnISWmnRZEwhgYvVVk_CgisUDtu4cygUlUGC68IB62AojR0ySgX74FMXmb0x9M8TaFgW24sYty7ltMqkjLMAMNPN2egfPixvuVbCt6LOmafksnDpngHBCrkqAVDbtrDy09AeZZ9S22YX_D9oqklDkGdElwUsIJsqudrmQKdWq4WdcVexnJ06UtmPE-ut7IlodQsqXTa952usSTSiAkP7VUaO_Dnv1lMM20OsJlbZLaCx79wHx9mKGV84K1g_ouKcPnzfoOtwflim2PcNpMKA6Qyct123sXdRix9fxc9huk1wZICPPIdMcPX4L-SDFv5v6EAtCKYJkqpyElIyzne9xALniBJIU_IMPm_J2KaTaU3TRsJBMkytV6q5owZtMLezEh7Hglm78xtUDCzB1J2zW7Gr35TKx5qCsU5LLqkXeOOy4D3ZRZP0pbq4f8hnRKIROfnRKPCVv3qoHSdVIuEfjBIFWVtOd3NVfrH4_mvxq7Z_s8BXLP7RJiWvLVyF4extl3ZmHmUr2m9hrJ7FAD9SopFB1bhDMyn3vUUB5Zkk96EZ6V77Jmbt63sQD-2flaBscops1QwiKLVtBktKDgENZdvrruOAc7MN4jVTs2Oy5SoaDetY9zTFDqZ2Fq79a-drH_WMDxvsoQ_xXAENfqOCxz3Iga7lQqG7FMUEZ9-Jp4wAKqHI_0ldtLTRdqqkzk3nivMo5Umff34j2lMIIItgtHuO3EMe6dP7VTBjQ8GvS_iEAU5Cc2Q1UYvFmCu3Rwct6b-KBy';
 
         const video = document.getElementById('video');
+        const cameraBtn = document.getElementById('camera-btn');
         const startBtn = document.getElementById('start-btn');
         const stopBtn = document.getElementById('stop-btn');
         const statusEl = document.getElementById('status');
@@ -128,23 +130,43 @@
         let stream = null;
         let intervalId = null;
         let currentIndex = 1;
+        let videoDevices = [];
+        let currentCameraIndex = 0;
 
-        async function initCamera() {
+        async function getVideoDevices() {
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            videoDevices = devices.filter(device => device.kind === 'videoinput');
+        }
+
+        async function initCamera(deviceId = null) {
             try {
-                stream = await navigator.mediaDevices.getUserMedia({
-                    video: {
-                        facingMode: 'environment',
-                        width: { ideal: 1920 },
-                        height: { ideal: 1080 }
-                    }
-                });
+                // Stop existing stream if any
+                if (stream) {
+                    stream.getTracks().forEach(track => track.stop());
+                }
 
+                const constraints = {
+                    video: deviceId
+                        ? { deviceId: { exact: deviceId }, width: { ideal: 1920 }, height: { ideal: 1080 } }
+                        : { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } }
+                };
+
+                stream = await navigator.mediaDevices.getUserMedia(constraints);
                 video.srcObject = stream;
+
+                statusEl.textContent = `camera ${currentCameraIndex + 1}/${videoDevices.length}`;
             } catch (error) {
                 console.error('Error accessing camera:', error);
-                document.querySelector('.video-container').innerHTML =
-                    `<div class="error">Camera access denied or not available: ${error.message}</div>`;
+                statusEl.textContent = `error: ${error.message}`;
             }
+        }
+
+        async function switchCamera() {
+            await getVideoDevices();
+            if (videoDevices.length === 0) return;
+
+            currentCameraIndex = (currentCameraIndex + 1) % videoDevices.length;
+            await initCamera(videoDevices[currentCameraIndex].deviceId);
         }
 
         async function captureAndUpload() {
@@ -236,7 +258,13 @@
             statusEl.textContent = 'stopped';
         });
 
-        initCamera();
+        cameraBtn.addEventListener('click', switchCamera);
+
+        // Initialize
+        (async () => {
+            await getVideoDevices();
+            await initCamera();
+        })();
     </script>
 </body>
 </html>
