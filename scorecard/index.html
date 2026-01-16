@@ -10,8 +10,8 @@
         :root {
             --bg-color: #000;
             --text-color: #f5f5f5;
-            --bar-color: #333;
-            --bar-highlight: #666;
+            --bar-color: #222;
+            --bar-highlight: #444;
             --accent-color: #f5f5f5;
         }
 
@@ -44,7 +44,8 @@
             height: 45vh;
             display: flex;
             align-items: flex-end;
-            justify-content: space-between;
+            justify-content: center;
+            gap: 4px;
             position: relative;
             margin-bottom: 8vh;
         }
@@ -53,7 +54,6 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            width: 5%;
             height: 100%;
             position: relative;
         }
@@ -77,14 +77,68 @@
             opacity: 0.9;
             color: var(--accent-color);
         }
+
+        .slider {
+            position: absolute;
+            top: 4vh;
+            width: 72px;
+            height: 28px;
+            background-color: var(--bar-color);
+            border-radius: 14px;
+            cursor: pointer;
+            padding: 4px;
+        }
+
+        .slider-track {
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+
+        .slider-thumb {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background-color: var(--accent-color);
+            border-radius: 10px;
+            top: 0;
+            left: 0;
+            transition: left 0.3s cubic-bezier(0.19, 1, 0.22, 1);
+        }
+
+        .slider-stops {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .slider-stop {
+            width: 24px;
+            height: 100%;
+            cursor: pointer;
+        }
     </style>
 </head>
 <body>
+    <div class="slider">
+        <div class="slider-track">
+            <div class="slider-thumb"></div>
+            <div class="slider-stops">
+                <div class="slider-stop" data-weeks="15"></div>
+                <div class="slider-stop" data-weeks="52"></div>
+                <div class="slider-stop" data-weeks="104"></div>
+            </div>
+        </div>
+    </div>
     <div id="chart-container"></div>
     <div class="time" id="total-time">0</div>
 
     <script>
         const formatHours = s => (s / 3600).toFixed(1);
+        let cachedData = null;
+        let currentWeeks = 15;
 
         const toEasternTime = localDate => {
             const easternOffset = 240; // EDT is 240 minutes west of UTC
@@ -96,15 +150,15 @@
         const getWeekStart = date => {
             const easternTime = toEasternTime(date);
             const dayOfWeek = easternTime.getDay();
-            
+
             const sunday = new Date(easternTime);
             sunday.setDate(easternTime.getDate() - dayOfWeek);
             sunday.setHours(12, 0, 0, 0);
-            
+
             if (dayOfWeek === 0 && easternTime.getHours() < 12) {
                 sunday.setDate(sunday.getDate() - 7);
             }
-            
+
             return sunday;
         };
 
@@ -119,10 +173,10 @@
             return weeks;
         };
 
-        const processData = data => {
+        const processData = (data, numWeeks) => {
             const rows = data.table.rows;
             const startIndex = rows[0]?.c[0]?.v === 'Timestamp' ? 1 : 0;
-            
+
             const entries = rows.slice(startIndex)
                 .map(row => {
                     if (!row?.c?.[0]?.v || row.c[1]?.v == null) return null;
@@ -134,13 +188,13 @@
 
             const now = new Date();
             const currentWeekStart = getWeekStart(now);
-            const tenWeeksAgo = new Date(currentWeekStart);
-            tenWeeksAgo.setDate(currentWeekStart.getDate() - 7 * 15);
+            const startWeek = new Date(currentWeekStart);
+            startWeek.setDate(currentWeekStart.getDate() - 7 * numWeeks);
 
-            const weeks = generateWeeks(tenWeeksAgo, currentWeekStart);
+            const weeks = generateWeeks(startWeek, currentWeekStart);
 
             entries
-                .filter(entry => entry.date >= tenWeeksAgo)
+                .filter(entry => entry.date >= startWeek)
                 .forEach(entry => {
                     const weekStart = getWeekStart(entry.date);
                     const key = weekStart.toISOString().split('T')[0];
@@ -152,40 +206,57 @@
             return Array.from(weeks.values()).sort((a, b) => a.startDate - b.startDate);
         };
 
-        const createChart = weeklyData => {
+        const createChart = (weeklyData, numWeeks) => {
             const container = document.getElementById('chart-container');
             const timeElement = document.getElementById('total-time');
-            
+
             container.innerHTML = '';
             if (!weeklyData.length) return;
 
             const now = new Date();
             const currentWeekStart = getWeekStart(now);
-            const completed = weeklyData.filter(w => w.startDate < currentWeekStart).slice(-16);
+            let completed = weeklyData.filter(w => w.startDate < currentWeekStart).slice(-numWeeks);
             const current = weeklyData.find(w => w.startDate.getTime() === currentWeekStart.getTime());
-            
-            const maxValue = Math.max(...weeklyData.map(w => w.totalSeconds));
+
+            // Trim leading empty weeks (start from first week with data)
+            const firstDataIndex = completed.findIndex(w => w.totalSeconds > 0);
+            if (firstDataIndex > 0) {
+                completed = completed.slice(firstDataIndex);
+            }
+
+            const maxValue = Math.max(...completed.map(w => w.totalSeconds));
             const lastHours = completed.length ? formatHours(completed[completed.length - 1].totalSeconds) : "0";
             const currentHours = current ? formatHours(current.totalSeconds) : "0";
-            
+
             timeElement.textContent = `${lastHours} ••• ${currentHours}`;
 
+            const animDelay = numWeeks <= 15 ? 100 : numWeeks <= 52 ? 30 : 15;
+
             completed.forEach((week, i) => {
-                const container = document.createElement('div');
-                container.className = 'bar-container';
-                
+                const barContainer = document.createElement('div');
+                barContainer.className = 'bar-container';
+                barContainer.style.flex = '1';
+                barContainer.style.maxWidth = numWeeks <= 15 ? '24px' : numWeeks <= 52 ? '14px' : '12px';
+
                 const bar = document.createElement('div');
                 bar.className = 'bar';
                 bar.style.height = '0%';
-                
-                container.appendChild(bar);
-                document.getElementById('chart-container').appendChild(container);
-                
+
+                barContainer.appendChild(bar);
+                container.appendChild(barContainer);
+
                 setTimeout(() => {
                     const height = maxValue > 0 ? (week.totalSeconds / maxValue) * 100 : 0;
                     bar.style.height = `${height}%`;
-                }, 100 * i);
+                }, animDelay * i);
             });
+        };
+
+        const renderChart = numWeeks => {
+            if (!cachedData) return;
+            currentWeeks = numWeeks;
+            const weeklyData = processData(cachedData, numWeeks);
+            createChart(weeklyData, numWeeks);
         };
 
         const fetchData = async () => {
@@ -207,9 +278,18 @@
 
         const init = async () => {
             try {
-                const data = await fetchData();
-                const weeklyData = processData(data);
-                createChart(weeklyData);
+                cachedData = await fetchData();
+                renderChart(currentWeeks);
+
+                const thumb = document.querySelector('.slider-thumb');
+                const positions = [0, 22, 44]; // left positions in px
+
+                document.querySelectorAll('.slider-stop').forEach((stop, i) => {
+                    stop.addEventListener('click', () => {
+                        thumb.style.left = `${positions[i]}px`;
+                        renderChart(parseInt(stop.dataset.weeks));
+                    });
+                });
             } catch (error) {
                 console.error('Init error:', error);
             }
